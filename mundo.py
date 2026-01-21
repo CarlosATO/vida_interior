@@ -28,7 +28,10 @@ class Mundo:
         self.recursos_totales = {"madera": 0, "piedra": 0, "comida": 0}
         
         # --- CICLO DÍA/NOCHE ---
-        self.tiempo = 0.3 # Empezamos de día (0.0=Amanacer, 0.5=Mediodía, 1.0=Noche)
+        self.tiempo = 0.3 
+        self.dia = 1
+        self.mes = 1
+        self.anio = 1
         self.color_ambiente = (0,0,0,0)
         
         # --- ANIMALES ---
@@ -42,8 +45,21 @@ class Mundo:
         # Incremento por frame = 1.0 / (Segundos * FPS)
         incremento = 1.0 / (DURACION_DIA_SEGUNDOS * FPS)
         self.tiempo += incremento
+        nuevo_dia = False
         if self.tiempo >= 1.0:
             self.tiempo = 0.0 # Nuevo día
+            self.dia += 1
+            nuevo_dia = True
+            
+            # Calendario Simplificado (30 días = 1 mes, 12 meses = 1 año)
+            if self.dia > 30:
+                self.dia = 1
+                self.mes += 1
+                if self.mes > 12:
+                    self.mes = 1
+                    self.anio += 1
+            
+        # Calcular color ambiente (Overlay)
             
         # Calcular color ambiente (Overlay)
         # 0.0 - 0.2: Amanecer (Oscuro -> Claro)
@@ -74,6 +90,7 @@ class Mundo:
             color = COLOR_NOCHE
 
         self.color_ambiente = (color[0], color[1], color[2], alpha)
+        return nuevo_dia
     
     def actualizar_naturaleza(self):
         # Simulación ecológica estocástica (para no matar el CPU)

@@ -173,3 +173,7 @@ rm personaje.png personaje_trans.png scripts/check_personaje.py
 Recomendación: guarda siempre una copia del original si quieres mantener la fuente (por ejemplo `assets/personaje_original.png`).
 
 Si prefieres, puedo añadir una opción al script para que haga automáticamente un backup del original antes de procesar.
+
+python main.py
+
+streamlit run dashboard.py

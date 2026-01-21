@@ -1,0 +1,449 @@
+[
+    {
+        "dia": 2,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 0,
+            "piedra": 2,
+            "comida": 0
+        },
+        "tecnologias": [],
+        "felicidad_promedio": 100.0,
+        "heroes": []
+    },
+    {
+        "dia": 2,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 0,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [],
+        "felicidad_promedio": 100.0,
+        "heroes": []
+    },
+    {
+        "dia": 3,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 3,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [],
+        "felicidad_promedio": 100.0,
+        "heroes": []
+    },
+    {
+        "dia": 4,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 3,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [],
+        "felicidad_promedio": 100.0,
+        "heroes": []
+    },
+    {
+        "dia": 3,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 0,
+            "piedra": 2,
+            "comida": 0
+        },
+        "tecnologias": [],
+        "felicidad_promedio": 100.0,
+        "heroes": []
+    },
+    {
+        "dia": 5,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 4,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [],
+        "felicidad_promedio": 100.0,
+        "heroes": []
+    },
+    {
+        "dia": 6,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 4,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 7,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 4,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 8,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 4,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 9,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 4,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 10,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 4,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 11,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 4,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 12,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 4,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 13,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 4,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 14,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 4,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 15,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 4,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 16,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 4,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 17,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 4,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 18,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 5,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 4,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 0,
+            "piedra": 2,
+            "comida": 0
+        },
+        "tecnologias": [],
+        "felicidad_promedio": 100.0,
+        "heroes": []
+    },
+    {
+        "dia": 19,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 5,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 20,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 5,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 21,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 5,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    },
+    {
+        "dia": 22,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 5,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [
+            "Herramientas"
+        ],
+        "felicidad_promedio": 100.0,
+        "heroes": [
+            {
+                "nombre": "Emilia",
+                "inventos": [
+                    "Herramientas"
+                ]
+            },
+            {
+                "nombre": "Mateo",
+                "inventos": [
+                    "Herramientas"
+                ]
+            }
+        ]
+    }
+]

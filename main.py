@@ -1,6 +1,8 @@
 import pygame
 import sys
 import random
+import json
+import os
 from config import *
 from habitante import Habitante
 from mundo import Mundo
@@ -10,7 +12,77 @@ pantalla = pygame.display.set_mode((ANCHO_PANTALLA, ALTO_PANTALLA))
 pygame.display.set_caption("Ciudad Isométrica - GIGANTE")
 reloj = pygame.time.Clock()
 
+def guardar_historia(mundo, habitantes):
+    archivo = "historia_mundo.json"
+    
+    # Calcular stats
+    # Tecnologías: Set de todos los conocimientos únicos
+    techs_totales = set()
+    h_felicidad_total = 0
+    heroes = []
+    
+    for h in habitantes:
+        techs_totales.update(h.conocimientos)
+        h_felicidad_total += h.necesidades["diversion"] # Usamos diversión como proxy a felicidad
+        if h.es_heroe:
+            heroes.append({"nombre": h.nombre, "inventos": h.conocimientos})
+            
+    promedio_felicidad = h_felicidad_total / len(habitantes) if habitantes else 0
+    
+    nuevo_registro = {
+        "dia": mundo.dia,
+        "poblacion": len(habitantes),
+        "recursos": mundo.recursos_totales.copy(),
+        "tecnologias": list(techs_totales),
+        "felicidad_promedio": round(promedio_felicidad, 2),
+        "heroes": heroes
+    }
+    
+    datos_completos = []
+    
+    # Leer historial existente
+    if os.path.exists(archivo):
+        try:
+            with open(archivo, "r") as f:
+                datos_completos = json.load(f)
+        except:
+             pass # Si falla, empezamos de cero
+             
+    datos_completos.append(nuevo_registro)
+    
+    # Guardar atómicamente (simple write por ahora)
+    with open(archivo, "w") as f:
+        json.dump(datos_completos, f, indent=4)
+        
+    print(f"💾 Día {mundo.dia} registrado. Historia guardada.")
+
+def dibujar_interfaz(pantalla, mundo):
+    # Fondo semitransparente superior
+    s = pygame.Surface((ANCHO_PANTALLA, 40))
+    s.set_alpha(200)
+    s.fill((0,0,0))
+    pantalla.blit(s, (0,0))
+    
+    # Texto Fecha
+    font = pygame.font.SysFont("Arial", 20, bold=True)
+    texto_fecha = f"📅 Año {mundo.anio} | Mes {mundo.mes} | Día {mundo.dia}"
+    img_fecha = font.render(texto_fecha, True, (255, 255, 255))
+    
+    # Centrar fecha
+    rect_fecha = img_fecha.get_rect(center=(ANCHO_PANTALLA//2, 20))
+    pantalla.blit(img_fecha, rect_fecha)
+    
+    # Hint Dashboard
+    font_small = pygame.font.SysFont("Arial", 14)
+    hint = "📊 Estadísticas: ejecuta 'streamlit run dashboard.py'"
+    img_hint = font_small.render(hint, True, (200, 200, 200))
+    pantalla.blit(img_hint, (10, 12))
+
 def main():
+    if not pygame.get_init():
+        pygame.init()
+        pygame.font.init()
+        
     el_mundo = Mundo()
     
     # --- FUNDAR CIUDAD ---
@@ -96,7 +168,10 @@ def main():
             pygame.mouse.get_rel() # Limpiar el delta si no arrastra
 
         # 1. LÓGICA (CEREBROS Y TIEMPO)
-        el_mundo.actualizar_tiempo()
+        nuevo_dia = el_mundo.actualizar_tiempo()
+        if nuevo_dia:
+             guardar_historia(el_mundo, habitantes)
+
         el_mundo.actualizar_naturaleza()
         
         # Actualizar Animales
@@ -142,6 +217,9 @@ def main():
         # Dibujamos entidades
         for e in entidades:
             e.dibujar(pantalla, el_mundo, camara_x, camara_y)
+
+        # 3. UI
+        dibujar_interfaz(pantalla, el_mundo)
             
         # --- CAPA DE AMBIENTE (DÍA/NOCHE) ---
         overlay = pygame.Surface((ANCHO_PANTALLA, ALTO_PANTALLA), pygame.SRCALPHA)
