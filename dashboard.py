@@ -73,10 +73,6 @@ with col_datos:
     else:
         st.info("Esperando datos de la simulación...")
 
-# Botón de refresco manual
-if st.button("🔄 Actualizar Ahora"):
-    st.rerun()
-
-# Auto-refresh (opcional, consumo de recursos)
-# time.sleep(2)
-# st.rerun()
+# Auto-refresh cada 1 segundo para efecto "Live"
+time.sleep(1)
+st.rerun()
