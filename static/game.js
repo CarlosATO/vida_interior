@@ -107,10 +107,18 @@ let mapDataCache = null;
 
 canvas.addEventListener('wheel', e => {
     e.preventDefault();
-    const zoomSpeed = 0.001;
-    ZOOM_LEVEL -= e.deltaY * zoomSpeed;
-    if (ZOOM_LEVEL < 0.2) ZOOM_LEVEL = 0.2;
-    if (ZOOM_LEVEL > 3.0) ZOOM_LEVEL = 3.0;
+
+    if (e.ctrlKey || e.metaKey) {
+        // ZOOM (Pinch gesture often sends ctrlKey on trackpads)
+        const zoomSpeed = 0.001;
+        ZOOM_LEVEL -= e.deltaY * zoomSpeed;
+        if (ZOOM_LEVEL < 0.2) ZOOM_LEVEL = 0.2;
+        if (ZOOM_LEVEL > 3.0) ZOOM_LEVEL = 3.0;
+    } else {
+        // PAN (Trackpad scroll or Mouse wheel without Ctrl)
+        OFFSET_X -= e.deltaX;
+        OFFSET_Y -= e.deltaY;
+    }
 });
 
 // --- FUNCIONES ISOMÉTRICAS ---
@@ -273,8 +281,8 @@ function draw() {
             const tile = mapa.mapa[f][c];
             const pos = gridToIso(c, f);
 
-            // Culling básico
-            if (pos.x < -200 || pos.x > canvas.width + 200 || pos.y < -200 || pos.y > canvas.height + 200) continue;
+            // Culling básico DESACTIVADO por problemas de visualización en algunos dispositivos
+            // if (pos.x < -200 || pos.x > canvas.width + 200 || pos.y < -200 || pos.y > canvas.height + 200) continue;
 
             const tipo = tile.tipo;
             const altura = tile.altura;
