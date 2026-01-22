@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import asyncio
 import os
 import random
@@ -8,7 +9,17 @@ from mundo import Mundo
 from habitante import Habitante
 from config import *
 
-app = FastAPI()
+# App se define abajo con lifespan
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Iniciar mundo y loop
+    inicializar_mundo()
+    task = asyncio.create_task(bucle_simulacion())
+    yield
+    # Shutdown (si fuera necesario cancelar task)
+    task.cancel()
+
+app = FastAPI(lifespan=lifespan)
 
 # Configurar CORS
 app.add_middleware(
@@ -67,42 +78,44 @@ def inicializar_mundo():
 # Inicializar al arranque
 inicializar_mundo()
 
+
+
 # --- BUCLE DE SIMULACIÓN ---
 async def bucle_simulacion():
     print("🚀 Iniciando simulación en background...")
     while True:
         try:
             # 1. TIEMPO & NATURALEZA
-            nuevo_dia = el_mundo.actualizar_tiempo()
-            el_mundo.actualizar_naturaleza()
-            
-            # 2. ANIMALES
-            for animal in el_mundo.animales:
-                animal.update(el_mundo)
+            if el_mundo:
+                nuevo_dia = el_mundo.actualizar_tiempo()
+                el_mundo.actualizar_naturaleza()
                 
-            # 3. HABITANTES
-            nuevos_habitantes = []
-            for h in habitantes:
-                h.ejecutar_ordenes(el_mundo, habitantes)
-                
-                # --- SALUD Y MUERTE ---
-                if h.necesidades["hambre"] >= 100:
-                    print(f"💀 {h.nombre} ha muerto de hambre.")
-                    habitantes.remove(h)
-                    continue
+                # 2. ANIMALES
+                for animal in el_mundo.animales:
+                    animal.update(el_mundo)
                     
-                # --- NACIMIENTOS ---
-                if h.accion_actual == "CORAZÓN":
-                    # Spawheo de hijos (Simplificado para API)
-                     if random.random() < 0.05:
-                        print(f"👶 ¡Un bebé ha nacido! Familia de {h.nombre}")
-                        bebe = Habitante(h.col, h.fila, f"Hijo de {h.nombre}", random.choice(["Masculino", "Femenino"]))
-                        bebe.personalidad["sociable"] = h.personalidad["sociable"]
-                        nuevos_habitantes.append(bebe)
-                        h.accion_actual = "ESPERAR"
-                        if h.pareja: h.pareja.accion_actual = "ESPERAR"
-            
-            habitantes.extend(nuevos_habitantes)
+                # 3. HABITANTES
+                nuevos_habitantes = []
+                for h in habitantes:
+                    h.ejecutar_ordenes(el_mundo, habitantes)
+                    
+                    # --- SALUD Y MUERTE ---
+                    if h.necesidades["hambre"] >= 100:
+                        print(f"💀 {h.nombre} ha muerto de hambre.")
+                        habitantes.remove(h)
+                        continue
+                        
+                    # --- NACIMIENTOS ---
+                    if h.accion_actual == "CORAZÓN":
+                         if random.random() < 0.05:
+                            print(f"👶 ¡Un bebé ha nacido! Familia de {h.nombre}")
+                            bebe = Habitante(h.col, h.fila, f"Hijo de {h.nombre}", random.choice(["Masculino", "Femenino"]))
+                            bebe.personalidad["sociable"] = h.personalidad["sociable"]
+                            nuevos_habitantes.append(bebe)
+                            h.accion_actual = "ESPERAR"
+                            if h.pareja: h.pareja.accion_actual = "ESPERAR"
+                
+                habitantes.extend(nuevos_habitantes)
             
             # 10 TICK/s
             await asyncio.sleep(0.1) 
@@ -111,9 +124,9 @@ async def bucle_simulacion():
             print(f"Error en loop sims: {e}")
             await asyncio.sleep(1)
 
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(bucle_simulacion())
+
+
+# Configurar CORS
 
 # --- API ENDPOINTS ---
 
@@ -190,3 +203,7 @@ async def get_mapa():
 @app.get("/")
 async def root():
     return {"message": "Vida Interior API Running. Go to /static/index.html"}
+if __name__ == "__main__":
+    import uvicorn
+    # Hot reload para desarrollo local
+    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
