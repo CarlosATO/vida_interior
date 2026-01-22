@@ -51,12 +51,20 @@ window.addEventListener('resize', () => {
 });
 
 canvas.addEventListener('mousedown', e => {
+    e.preventDefault(); // Prevent text selection/drag behavior
     isDragging = true;
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
+    canvas.style.cursor = 'grabbing';
 });
 
-window.addEventListener('mouseup', () => isDragging = false);
+window.addEventListener('mouseup', () => {
+    isDragging = false;
+    canvas.style.cursor = 'default';
+});
+
+// Disable right click context menu to allow right-click interactions if needed later
+canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 canvas.addEventListener('mousemove', e => {
     if (isDragging) {

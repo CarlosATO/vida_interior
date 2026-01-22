@@ -79,11 +79,11 @@ class Habitante:
         # 2. Consultar al CEREBRO
         orden, datos = self.cerebro.pensar(self, mundo, habitantes)
         
-        # Deterioro pasivo de necesidades (MAS RAPIDO)
-        self.necesidades["hambre"] += 0.05 * self.personalidad["gloton"]
-        self.necesidades["sed"] += 0.08 # Sed sube rápido
-        self.necesidades["energia"] -= 0.02 * self.personalidad["trabajador"] 
-        self.necesidades["social"] -= 0.05 * self.personalidad["sociable"]
+        # Deterioro pasivo de necesidades (MAS LENTO para debug)
+        self.necesidades["hambre"] += 0.01 * self.personalidad["gloton"]
+        self.necesidades["sed"] += 0.02 # Sed sube moderado
+        self.necesidades["energia"] -= 0.005 * self.personalidad["trabajador"] 
+        self.necesidades["social"] -= 0.01 * self.personalidad["sociable"]
         
         # Clamp valores
         for k in self.necesidades:
@@ -194,6 +194,50 @@ class Habitante:
                 else:
                     self.accion_actual = "ESPERAR"
 
+        elif orden == "REPRODUCIR":
+            self.accion_actual = "AMAR"
+            if self.pareja:
+                dist = math.sqrt((self.col - self.pareja.col)**2 + (self.fila - self.pareja.fila)**2)
+                if dist < 2.0:
+                    # Costo masivo
+                    self.necesidades["energia"] -= 30
+                    self.necesidades["social"] = 0 
+                    
+                    # Nace un bebé
+                    nombre_hijo = random.choice(["Neo", "Trinity", "Morfeo", "Cifra", "Tanque", "Dozer", "Apoc", "Ratona"]) + str(random.randint(0,99))
+                    genero_hijo = random.choice(["Masculino", "Femenino"])
+                    
+                    # Instanciar (Python permite usar la clase dentro de sus propios métodos si ya está definida o usando type(self))
+                    # Usamos type(self) para ser seguros si cambiamos nombre clase
+                    nuevo = type(self)(self.col, self.fila, nombre_hijo, genero_hijo)
+                    
+                    # Herencia simple
+                    nuevo.personalidad["sociable"] = (self.personalidad["sociable"] + self.pareja.personalidad["sociable"]) / 2
+                    
+                    habitantes.append(nuevo)
+                    print(f"👶 ¡Nació {nombre_hijo}! Hijos de {self.nombre} y {self.pareja.nombre}")
+                    
+                    self.mensaje_actual = "❤️"
+                    self.tiempo_bocadillo = 120
+                    # Cooldown for reproduction? High energy cost acts as soft cooldown.
+
+        elif orden == "CRAFT":
+            receta_nombre = datos
+            receta = RECETAS_UNIVERSALES.get(receta_nombre)
+            if receta:
+                # Consumir recursos
+                for ing, cant in receta.items():
+                    self.inventario[ing] -= cant
+                
+                # Crear Item (Abstratto por ahora, solo flag o inventario)
+                # Si es herramienta, bonus?
+                if "herramienta" in receta_nombre.lower():
+                    self.personalidad["trabajador"] *= 1.2 # Mejora trabajador?
+                
+                print(f"🔨 {self.nombre} fabricó {receta_nombre}")
+                self.mensaje_actual = "🔨"
+                self.tiempo_bocadillo = 60
+        
         elif orden == "COMER":
             self.accion_actual = "COMER"
             if datos:

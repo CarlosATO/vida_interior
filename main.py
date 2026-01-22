@@ -105,6 +105,11 @@ async def bucle_simulacion():
                         print(f"💀 {h.nombre} ha muerto de hambre.")
                         habitantes.remove(h)
                         continue
+                    
+                    if h.necesidades["sed"] >= 100:
+                        print(f"💀 {h.nombre} ha muerto de sed.")
+                        habitantes.remove(h)
+                        continue
                         
                     # --- NACIMIENTOS ---
                     if h.accion_actual == "CORAZÓN":
@@ -197,9 +202,30 @@ async def get_mapa():
     return {
         "filas": FILAS,
         "columnas": COLUMNAS,
-        "mapa": el_mundo.mapa_logico, # JSON gigante con tipo, altura, color
         "edificios": [{"c": k[0], "f": k[1], "tipo": v} for k,v in el_mundo.edificios.items()]
     }
+
+@app.post("/reiniciar")
+async def reiniciar():
+    global el_mundo, habitantes
+    from mundo import Mundo
+    from habitante import Habitante
+    from config import COLUMNAS, FILAS
+    import random
+    
+    print("🔁 Reiniciando mundo...")
+    el_mundo = Mundo()
+    habitantes.clear()
+    
+    # Re-spam habitantes base
+    base_x, base_y = COLUMNAS // 2, FILAS // 2
+    nombres = [("Emilia", "Femenino"), ("Sofia", "Femenino"), ("Mateo", "Masculino")]
+    for nombre, genero in nombres:
+        c = base_x + random.randint(-2, 2)
+        f = base_y + random.randint(-2, 2)
+        habitantes.append(Habitante(c, f, nombre, genero))
+        
+    return {"mensaje": "Mundo reiniciado correctamente"}
 
 @app.get("/")
 async def root():

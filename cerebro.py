@@ -104,8 +104,28 @@ class Cerebro:
             objetivos.append(("sabio", 2)) # Descubrir cosas
             objetivos.append(("rico", 1)) # Acumular recursos
             
+        # D. Reproducción (La necesidad social y energía alta activan esto)
+        if cuerpo.pareja and cuerpo.necesidades["social"] > 80 and cuerpo.necesidades["energia"] > 70:
+            objetivos.append(("reproducirse", 15))
+
+        # E. Crafting (Si tenemos recursos suficientes)
+        if cuerpo.necesidades["hambre"] < 40:
+             # Check recipes
+             for nom, receta in RECETAS_UNIVERSALES.items():
+                 posible = True
+                 for ing, cant in receta.items():
+                     if cuerpo.inventario.get(ing, 0) < cant:
+                         posible = False
+                         break
+                 if posible:
+                     objetivos.append(("craft", 8))
+                     break
+
         # Default
         objetivos.append(("vivo", 1))
+
+        # Ordenar por prioridad
+        objetivos.sort(key=lambda x: x[1], reverse=True)
 
         # 2. Buscar plan para el objetivo más importante
         for objetivo, prioridad in objetivos:
@@ -214,6 +234,31 @@ class Cerebro:
                 nx, ny = int(cuerpo.col + dx), int(cuerpo.fila + dy)
                 acc_explorar.datos = (nx, ny)
                 return [acc_explorar] 
+
+        elif objetivo == "reproducirse":
+            if cuerpo.pareja:
+                dist = self.distancia(cuerpo, (cuerpo.pareja.col, cuerpo.pareja.fila))
+                plan = []
+                if dist > 2:
+                     acc_ir = Accion("CAMINAR")
+                     acc_ir.datos = (cuerpo.pareja.col, cuerpo.pareja.fila)
+                     plan.append(acc_ir)
+                
+                acc_amor = Accion("REPRODUCIR")
+                plan.append(acc_amor)
+                return plan
+        
+        elif objetivo == "craft":
+             for nom, receta in RECETAS_UNIVERSALES.items():
+                 posible = True
+                 for ing, cant in receta.items():
+                     if cuerpo.inventario.get(ing, 0) < cant:
+                         posible = False
+                         break
+                 if posible:
+                     acc = Accion("CRAFT")
+                     acc.datos = nom
+                     return [acc] 
 
         return None
 
