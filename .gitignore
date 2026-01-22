@@ -2,3 +2,5 @@
 __pycache__/
 *.pyc
 .DS_Store
+historia_mundo.json
+estado_visual.png
