@@ -33,10 +33,11 @@ class Habitante:
         
         # Necesidades (0 a 100)
         self.necesidades = {
-            "hambre": 0,      # 0 = lleno, 100 = muriendo
-            "energia": 100,   # 100 = full, 0 = desmayado
-            "social": 100,    # 100 = satisfecho, 0 = solo
-            "diversion": 100  # 100 = feliz, 0 = aburrido
+            "hambre": 20,      # 0 = lleno, 100 = muriendo
+            "sed": 10,         # Nueva necesidad: SED
+            "energia": 80,     # No empiezan al 100 para que duerman antes
+            "social": 40,      # Necesitan amigos
+            "diversion": 50
         }
         
         # Personalidad (Factores multiplicadores)
@@ -78,10 +79,11 @@ class Habitante:
         # 2. Consultar al CEREBRO
         orden, datos = self.cerebro.pensar(self, mundo, habitantes)
         
-        # Deterioro pasivo de necesidades
-        self.necesidades["hambre"] += 0.02 * self.personalidad["gloton"]
-        self.necesidades["energia"] -= 0.01 * self.personalidad["trabajador"] # Cansa existir
-        self.necesidades["social"] -= 0.03 * self.personalidad["sociable"]
+        # Deterioro pasivo de necesidades (MAS RAPIDO)
+        self.necesidades["hambre"] += 0.05 * self.personalidad["gloton"]
+        self.necesidades["sed"] += 0.08 # Sed sube rápido
+        self.necesidades["energia"] -= 0.02 * self.personalidad["trabajador"] 
+        self.necesidades["social"] -= 0.05 * self.personalidad["sociable"]
         
         # Clamp valores
         for k in self.necesidades:
@@ -90,6 +92,26 @@ class Habitante:
         # 3. Obedecer
         if orden == "ESPERAR":
             self.accion_actual = "ESPERAR"
+            # Si estoy aburrido, buscar algo que hacer random
+            if random.random() < 0.1:
+                self.accion_actual = "BUSCANDO"
+
+        elif orden == "BEBER":
+            self.accion_actual = "BEBIENDO"
+            c, f = datos # Coordenadas de agua
+            
+            # Moverse al agua si está lejos
+            if abs(self.col - c) > 1 or abs(self.fila - f) > 1:
+                self.camino = mundo.obtener_camino((self.col, self.fila), (c, f))
+                self.moviendose = True
+                self.accion_actual = "CAMINAR"
+            else:
+                # Beber
+                self.necesidades["sed"] = 0
+                self.necesidades["energia"] += 5
+                print(f"💧 {self.nombre} bebió agua.")
+                self.mensaje_actual = "💧"
+                self.tiempo_bocadillo = 60
 
         elif orden == "DORMIR":
             self.accion_actual = "DORMIR"

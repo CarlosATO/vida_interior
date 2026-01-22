@@ -112,6 +112,114 @@ function gridToIso(col, fila) {
     return { x, y };
 }
 
+// --- RENDERIZADO DE AVATARES ---
+function drawAvatar(ctx, x, y, habitante, zoom) {
+    const scale = zoom * 0.8;
+    const time = Date.now() * 0.005; // Velocidad animación
+
+    // Si se mueve, animar piernas
+    const isMoving = habitante.accion === "CAMINAR" || habitante.accion === "BUSCANDO" || habitante.accion === "BEBIENDO";
+    const legOffset = isMoving ? Math.sin(time) * 3 : 0;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+
+    // Sombra
+    ctx.fillStyle = "rgba(0,0,0,0.3)";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 8, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Piernas (Pantalón oscuro)
+    ctx.fillStyle = "#333";
+    // Pierna Izq
+    ctx.fillRect(-4, -10 + legOffset, 3, 10);
+    // Pierna Der
+    ctx.fillRect(1, -10 - legOffset, 3, 10);
+
+    // Cuerpo (Camiseta color habitante)
+    ctx.fillStyle = habitante.color;
+    ctx.fillRect(-5, -22, 10, 14);
+
+    // Brazos
+    ctx.fillStyle = "#F5D0A9"; // Piel
+    if (habitante.accion === "RECOLECTAR") {
+        // Brazo levantado trabajando
+        const armWave = Math.sin(time * 3) * 5;
+        ctx.fillRect(5, -22 + armWave, 3, 10);
+        ctx.fillRect(-8, -20, 3, 10);
+    } else {
+        // Brazos normales
+        ctx.fillRect(5, -22, 3, 10);
+        ctx.fillRect(-8, -22, 3, 10);
+    }
+
+    // Cabeza
+    ctx.fillStyle = "#F5D0A9"; // Piel
+    ctx.fillRect(-4, -30, 8, 8);
+
+    // Pelo (Estilo random basado en el nombre/hash o género simple)
+    ctx.fillStyle = (habitante.genero === "Femenino") ? "#5E3A18" : "#281706";
+    if (habitante.genero === "Femenino") {
+        ctx.fillRect(-5, -32, 10, 4); // Top
+        ctx.fillRect(-5, -32, 2, 10); // Largo
+        ctx.fillRect(3, -32, 2, 10);
+    } else {
+        ctx.fillRect(-4, -32, 8, 3); // Corto
+    }
+
+    // Ojos
+    ctx.fillStyle = "black";
+    ctx.fillRect(-2, -27, 1, 1);
+    ctx.fillRect(1, -27, 1, 1);
+
+    // BUBBLES de ACCIÓN
+    if (habitante.mensaje) {
+        // Globo de chat
+        ctx.fillStyle = "white";
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(-15, -55, 30, 20, 5);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "black";
+        ctx.font = "bold 12px Arial";
+        ctx.textAlign = "center";
+        // Si es emoji usalo, si no texto
+        ctx.fillText(habitante.mensaje, 0, -41);
+    } else if (habitante.accion === "BEBIENDO") {
+        ctx.font = "16px Arial";
+        ctx.fillText("💧", 0, -40);
+    } else if (habitante.accion === "COMER") {
+        ctx.font = "16px Arial";
+        ctx.fillText("🍔", 0, -40);
+    } else if (habitante.accion === "SOCIALIZAR") {
+        ctx.font = "16px Arial";
+        ctx.fillText("💬", 0, -40);
+    } else if (habitante.accion === "DORMIR") {
+        ctx.font = "16px Arial";
+        ctx.fillText("💤", 0, -40);
+    }
+
+    // Nombre
+    if (zoom > 0.6) {
+        ctx.fillStyle = "white";
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "center";
+
+        // Stroke para leer mejor
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.strokeText(habitante.nombre, 0, -5);
+        ctx.fillText(habitante.nombre, 0, -5);
+    }
+
+    ctx.restore();
+}
+
 // --- GAME LOOP ---
 function loop(timestamp) {
     update(timestamp);
@@ -273,28 +381,11 @@ function draw() {
                 topY = mapa.mapa[f][c]._topY || pos.y;
             }
 
-            // Cuerpo
-            const w = 14 * ZOOM_LEVEL;
-            const height = 35 * ZOOM_LEVEL;
-            ctx.fillStyle = h.color;
-            ctx.fillRect(pos.x - w / 2, topY - height, w, height);
+            // Renderizar Avatar
+            // Coordenada Z aproximada: Los pies están en pos.x, topY.
+            // drawAvatar dibuja centrado en X, con Y siendo los pies.
 
-            // Nombre
-            if (ZOOM_LEVEL > 0.8) {
-                ctx.fillStyle = 'white';
-                ctx.font = `${10 * ZOOM_LEVEL}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.fillText(h.nombre, pos.x, topY - height - 5);
-            }
-
-            // Bocadillo
-            if (h.mensaje) {
-                ctx.fillStyle = 'white';
-                ctx.fillRect(pos.x - 15, topY - height - 30, 30, 20);
-                ctx.fillStyle = 'black';
-                ctx.font = '12px Arial';
-                ctx.fillText(h.mensaje, pos.x, topY - height - 16);
-            }
+            drawAvatar(ctx, pos.x, topY, h, ZOOM_LEVEL);
         });
 
         // 5. Overlay Ambiente (Día/Noche)

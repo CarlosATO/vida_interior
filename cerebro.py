@@ -87,6 +87,8 @@ class Cerebro:
         # A. Supervivencia Inmediata
         if cuerpo.necesidades["hambre"] > 50:
             objetivos.append(("saciado", 10))
+        if cuerpo.necesidades["sed"] > 50:
+            objetivos.append(("hidratado", 10))
         if cuerpo.necesidades["energia"] < 20:
              objetivos.append(("descansado", 10))
 
@@ -122,7 +124,33 @@ class Cerebro:
         
         plan = []
         
-        if objetivo == "saciado":
+        if objetivo == "hidratado":
+             # Estrategia: Buscar elemento "agua" -> Ir -> Beber
+             # Buscar en memoria
+             pos_agua = self.buscar_recurso_cercano(cuerpo, ["agua"])
+             
+             if pos_agua:
+                 dist = self.distancia(cuerpo, pos_agua)
+                 if dist > 1.5:
+                     acc_ir = Accion("CAMINAR")
+                     acc_ir.datos = pos_agua
+                     plan.append(acc_ir)
+                     
+                 acc_beber = Accion("BEBER")
+                 acc_beber.datos = pos_agua
+                 plan.append(acc_beber)
+                 return plan
+             else:
+                 # Explorar para encontrar agua (ir hacia bordes/playa?)
+                 acc_explorar = Accion("EXPLORAR")
+                 # Asumir que agua suele estar en bordes o ríos
+                 dx = random.randint(-15, 15)
+                 dy = random.randint(-15, 15)
+                 nx, ny = int(cuerpo.col + dx), int(cuerpo.fila + dy)
+                 acc_explorar.datos = (nx, ny)
+                 return [acc_explorar] 
+
+        elif objetivo == "saciado":
             # Estrategia: Buscar comida -> Ir -> Comer
             pos_comida = self.buscar_recurso_cercano(cuerpo, ["fruta", "vegetal", "animal_gallina", "animal_cabra"])
             if pos_comida:
