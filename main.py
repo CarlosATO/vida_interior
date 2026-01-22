@@ -202,6 +202,7 @@ async def get_mapa():
     return {
         "filas": FILAS,
         "columnas": COLUMNAS,
+        "mapa": el_mundo.mapa_logico,
         "edificios": [{"c": k[0], "f": k[1], "tipo": v} for k,v in el_mundo.edificios.items()]
     }
 
