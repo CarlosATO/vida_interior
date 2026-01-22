@@ -445,5 +445,29 @@
                 ]
             }
         ]
+    },
+    {
+        "dia": 2,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 1,
+            "piedra": 0,
+            "comida": 0
+        },
+        "tecnologias": [],
+        "felicidad_promedio": 100.0,
+        "heroes": []
+    },
+    {
+        "dia": 3,
+        "poblacion": 3,
+        "recursos": {
+            "madera": 1,
+            "piedra": 1,
+            "comida": 0
+        },
+        "tecnologias": [],
+        "felicidad_promedio": 100.0,
+        "heroes": []
     }
 ]

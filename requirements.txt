@@ -1,0 +1,4 @@
+pygame
+streamlit
+pandas
+watchdog

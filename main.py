@@ -7,9 +7,24 @@ from config import *
 from habitante import Habitante
 from mundo import Mundo
 
+# --- CONFIGURACIÓN HEADLESS (RAILWAY) ---
+HEADLESS = os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('HEADLESS')
+
+if HEADLESS:
+    os.environ["SDL_VIDEODRIVER"] = "dummy"
+    print("🖥️ MODO HEADLESS ACTIVADO: Sin ventana gráfica.")
+else:
+    print("🖥️ MODO GRÁFICO ACTIVADO: Ventana normal.")
+
 pygame.init()
-pantalla = pygame.display.set_mode((ANCHO_PANTALLA, ALTO_PANTALLA))
-pygame.display.set_caption("Ciudad Isométrica - GIGANTE")
+
+if HEADLESS:
+    # En modo headless, set_mode funciona con driver dummy para dar contexto a convert_alpha
+    pantalla = pygame.display.set_mode((ANCHO_PANTALLA, ALTO_PANTALLA))
+else:
+    pantalla = pygame.display.set_mode((ANCHO_PANTALLA, ALTO_PANTALLA))
+    pygame.display.set_caption("Ciudad Isométrica - GIGANTE")
+
 reloj = pygame.time.Clock()
 
 def guardar_historia(mundo, habitantes):
@@ -124,48 +139,55 @@ def main():
 
     ejecutando = True
     while ejecutando:
-        for evento in pygame.event.get():
-            if evento.type == pygame.QUIT:
-                ejecutando = False
-            
-            # --- CONTROLES INTELIGENTES (AUTO-DETECT) ---
-            if evento.type == pygame.MOUSEWHEEL:
-                # Detectar modifier keys (CMD en Mac, CTRL en Win)
-                mods = pygame.key.get_mods()
-                is_zoom_mode = (mods & pygame.KMOD_META) or (mods & pygame.KMOD_CTRL)
-                
-                if is_zoom_mode:
-                    # MODO ZOOM (Suavizado para Trackpad)
-                    factor = 0.05 # Menor sensibilidad
-                    if evento.y > 0: el_mundo.cambiar_zoom(factor)
-                    elif evento.y < 0: el_mundo.cambiar_zoom(-factor)
-                else:
-                    # MODO PANEO (Desplazamiento natural con dos dedos)
-                    # Multiplicador más alto para que se sienta reactivo
-                    pan_speed = 15 
-                    camara_x -= evento.x * pan_speed 
-                    camara_y -= evento.y * pan_speed 
-            
-            # --- RESET ---
-            if evento.type == pygame.KEYDOWN and evento.key == pygame.K_r:
-                el_mundo = Mundo()
-
-        # --- CONTROL DE CÁMARA ---
-        # 1. Teclado (Flechas)
-        teclas = pygame.key.get_pressed()
-        if teclas[pygame.K_LEFT]: camara_x -= VELOCIDAD_CAMARA
-        if teclas[pygame.K_RIGHT]: camara_x += VELOCIDAD_CAMARA
-        if teclas[pygame.K_UP]: camara_y -= VELOCIDAD_CAMARA
-        if teclas[pygame.K_DOWN]: camara_y += VELOCIDAD_CAMARA
         
-        # 2. Mouse (Arrastrar con clic derecho)
-        mouse_botones = pygame.mouse.get_pressed()
-        if mouse_botones[2]: # Clic derecho
-            rel_x, rel_y = pygame.mouse.get_rel()
-            camara_x -= rel_x
-            camara_y -= rel_y
+        # --- INPUT (Solo si no es Headless) ---
+        if not HEADLESS:
+            for evento in pygame.event.get():
+                if evento.type == pygame.QUIT:
+                    ejecutando = False
+                
+                # --- CONTROLES INTELIGENTES (AUTO-DETECT) ---
+                if evento.type == pygame.MOUSEWHEEL:
+                    # Detectar modifier keys (CMD en Mac, CTRL en Win)
+                    mods = pygame.key.get_mods()
+                    is_zoom_mode = (mods & pygame.KMOD_META) or (mods & pygame.KMOD_CTRL)
+                    
+                    if is_zoom_mode:
+                        # MODO ZOOM (Suavizado para Trackpad)
+                        factor = 0.05 # Menor sensibilidad
+                        if evento.y > 0: el_mundo.cambiar_zoom(factor)
+                        elif evento.y < 0: el_mundo.cambiar_zoom(-factor)
+                    else:
+                        # MODO PANEO (Desplazamiento natural con dos dedos)
+                        # Multiplicador más alto para que se sienta reactivo
+                        pan_speed = 15 
+                        camara_x -= evento.x * pan_speed 
+                        camara_y -= evento.y * pan_speed 
+                
+                # --- RESET ---
+                if evento.type == pygame.KEYDOWN and evento.key == pygame.K_r:
+                    el_mundo = Mundo()
         else:
-            pygame.mouse.get_rel() # Limpiar el delta si no arrastra
+             # En headless debemos procesar eventos internos para evitar que se congele pygame?
+             pygame.event.pump() 
+
+        # --- CONTROL DE CÁMARA (Solo Input manual si hay GUI) ---
+        if not HEADLESS:
+            # 1. Teclado (Flechas)
+            teclas = pygame.key.get_pressed()
+            if teclas[pygame.K_LEFT]: camara_x -= VELOCIDAD_CAMARA
+            if teclas[pygame.K_RIGHT]: camara_x += VELOCIDAD_CAMARA
+            if teclas[pygame.K_UP]: camara_y -= VELOCIDAD_CAMARA
+            if teclas[pygame.K_DOWN]: camara_y += VELOCIDAD_CAMARA
+            
+            # 2. Mouse (Arrastrar con clic derecho)
+            mouse_botones = pygame.mouse.get_pressed()
+            if mouse_botones[2]: # Clic derecho
+                rel_x, rel_y = pygame.mouse.get_rel()
+                camara_x -= rel_x
+                camara_y -= rel_y
+            else:
+                pygame.mouse.get_rel() # Limpiar el delta si no arrastra
 
         # 1. LÓGICA (CEREBROS Y TIEMPO)
         nuevo_dia = el_mundo.actualizar_tiempo()
@@ -263,6 +285,13 @@ def main():
         pantalla.blit(txt_reloj, (x_panel + 10, 95)) # Debajo de recursos (ajustar panel fondo)
 
         pygame.display.flip()
+        
+        # --- HEADLESS SNAPSHOT ---
+        if HEADLESS:
+             # Guardamos el estado visual para que el dashboard lo vea
+             # Hacemos esto cada frame (o cada N frames si es muy lento)
+             pygame.image.save(pantalla, "estado_visual.png")
+             
         reloj.tick(FPS)
 
     pygame.quit()
