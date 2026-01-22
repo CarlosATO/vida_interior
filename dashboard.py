@@ -35,12 +35,16 @@ with col_visual:
     img_container = st.empty()
     
     if os.path.exists("estado_visual.png"):
-        # Usamos PIL para abrir y mostrar, evitando cache agresivo de streamlit
         try:
+            # Usamos PIL para abrir
             image = Image.open("estado_visual.png")
+            # Forzamos carga en memoria para liberar el archivo lo antes posible
+            image.load() 
             img_container.image(image, caption="Estado Actual", use_container_width=True)
-        except Exception as e:
-            st.error(f"Error al cargar imagen: {e}")
+        except Exception:
+            # Si falla (archivo truncado o bloqueado), simplemente no actualizamos este frame
+            # Esto evita el parpadeo de error rojo
+            pass
     else:
         st.warning("Esperando snapshot del servidor...")
 
@@ -73,6 +77,6 @@ with col_datos:
     else:
         st.info("Esperando datos de la simulación...")
 
-# Auto-refresh cada 1 segundo para efecto "Live"
-time.sleep(1)
+# Auto-refresh más suave (2 segundos)
+time.sleep(2)
 st.rerun()

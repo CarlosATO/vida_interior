@@ -290,7 +290,16 @@ def main():
         if HEADLESS:
              # Guardamos el estado visual para que el dashboard lo vea
              # Hacemos esto cada frame (o cada N frames si es muy lento)
-             pygame.image.save(pantalla, "estado_visual.png")
+             # HEADLESS SNAPSHOT (ATÓMICO)
+             # Guardamos en un temporal y renombramos para evitar que el dashboard lea un archivo a medio escribir
+             temp_file = "estado_visual_temp.png"
+             final_file = "estado_visual.png"
+             
+             try:
+                 pygame.image.save(pantalla, temp_file)
+                 os.replace(temp_file, final_file) # Atomic replace en POSIX
+             except Exception as e:
+                 print(f"Error guardando snapshot: {e}")
              
         reloj.tick(FPS)
 
