@@ -1,8 +1,6 @@
-import pygame
 import os
 import math
 import random
-from config import *
 from config import *
 from cerebro import Cerebro, RECETAS_UNIVERSALES 
 
@@ -49,10 +47,10 @@ class Habitante:
             "curioso": random.uniform(0.8, 1.2)
         }
 
-        # Colores Identidad (Procedural temporal)
-        self.color_cuerpo = (100, 150, 255) if genero == "Masculino" else (255, 100, 150)
-        if nombre == "Mateo": self.color_cuerpo = (80, 120, 220)
-        elif nombre == "Sofia": self.color_cuerpo = (220, 100, 180)
+        # Colores Identidad (Procedural temporal - Para frontend)
+        self.color_cuerpo = "#6496FF" if genero == "Masculino" else "#FF6496"
+        if nombre == "Mateo": self.color_cuerpo = "#5078DC"
+        elif nombre == "Sofia": self.color_cuerpo = "#DC64B4"
         
         # --- SOCIEDAD ---
         self.pareja = None
@@ -62,6 +60,10 @@ class Habitante:
         self.conocimientos = []
         self.es_heroe = False
         self.tiempo_invencion = 0
+        
+        # Estado Visual (Bocadillos)
+        self.tiempo_bocadillo = 0
+        self.mensaje_actual = ""
 
     def ejecutar_ordenes(self, mundo, habitantes):
         # 1. Si ya está ocupado...
@@ -114,9 +116,6 @@ class Habitante:
             # Elegir 2 items al azar del inventario (si tiene)
             items_disponibles = [k for k, v in self.inventario.items() if v > 0]
             if len(items_disponibles) >= 1:
-                # Simular combinación (simplificado: solo chequeamos si tiene los ingredientes de alguna receta)
-                # Iteramos recetas para ver si de casualidad "acierta"
-                
                 if random.random() < 0.02 * self.personalidad["curioso"]: # 2% chance per frame * curiosidad
                      # Intentar descubrir algo
                      for receta, ingredientes in RECETAS_UNIVERSALES.items():
@@ -230,16 +229,13 @@ class Habitante:
         
         tema = random.choice(self.conocimientos)
         
-        # Token de Conocimiento: (TIPO, CONTENIDO, CERTEZA)
-        token = ("TECNOLOGIA", tema, 1.0)
-        
         # Intentar transmitir
         if tema not in receptor.conocimientos:
             # Receptor aprende!
             receptor.conocimientos.append(tema)
             print(f"🗣️ {self.nombre} enseñó {tema} a {receptor.nombre}")
             
-            # Visuals
+            # Visuals (Datos para el frontend)
             self.tiempo_bocadillo = 60
             self.mensaje_actual = "💬"
             receptor.tiempo_bocadillo = 60
@@ -275,77 +271,3 @@ class Habitante:
             self.col += (dx / dist) * velocidad
             self.fila += (dy / dist) * velocidad
             self.necesidades["energia"] -= 0.5
-
-    def dibujar(self, pantalla, mundo, camara_x, camara_y):
-        iso_x, iso_y = mundo.grid_to_iso(self.col, self.fila)
-        
-        # Ajuste de altura por terreno (Voxels)
-        try:
-            altura = mundo.obtener_altura(self.col, self.fila)
-        except:
-            altura = 0
-            
-        OFFSET_CAPAS = int(15 * mundo.zoom)
-        offset_y_terreno = (altura - 1) * OFFSET_CAPAS if altura > 0 else -10 
-        
-        x_dibujo = iso_x - camara_x
-        y_dibujo = iso_y - camara_y - offset_y_terreno
-        
-        # Verificar si está en pantalla
-        if -50 < x_dibujo < ANCHO_PANTALLA + 50 and -50 < y_dibujo < ALTO_PANTALLA + 50:
-            
-            # --- DIBUJO PROCEDURAL "PREMIUM" MINIMALISTA (ESCALADO) ---
-            z = mundo.zoom
-            
-            # Dimensiones base escaladas
-            w_sombra = int(20 * z)
-            h_sombra = int(10 * z)
-            
-            altura_cuerpo = int(35 * z)
-            ancho_cuerpo = int(14 * z)
-            
-            # Sombra
-            pygame.draw.ellipse(pantalla, (0,0,0, 100), (x_dibujo - w_sombra//2, y_dibujo - h_sombra//2, w_sombra, h_sombra))
-            
-            pie_y = y_dibujo - int(5 * z)
-            cabeza_y = pie_y - altura_cuerpo
-            
-            rect_cuerpo = pygame.Rect(x_dibujo - ancho_cuerpo//2, cabeza_y, ancho_cuerpo, altura_cuerpo)
-            pygame.draw.rect(pantalla, self.color_cuerpo, rect_cuerpo, border_radius=int(7*z))
-            
-            # Cabeza Femenina
-            if self.genero == "Femenino":
-                 pygame.draw.circle(pantalla, (250,250,250), (x_dibujo, cabeza_y + int(4*z)), int(2*z))
-            
-            # --- UI: BOCADILLO DE DIÁLOGO (NUEVO) ---
-            if hasattr(self, "tiempo_bocadillo") and self.tiempo_bocadillo > 0:
-                self.tiempo_bocadillo -= 1
-                font_bubble = pygame.font.SysFont("Arial", int(14*z), bold=True)
-                txt = font_bubble.render(getattr(self, "mensaje_actual", "."), True, (0,0,0))
-                
-                # Globo blanco
-                rect_b = txt.get_rect(center=(x_dibujo, cabeza_y - int(15*z)))
-                rect_b.inflate_ip(10, 5)
-                pygame.draw.rect(pantalla, (255,255,255), rect_b, border_radius=5)
-                pygame.draw.polygon(pantalla, (255,255,255), [(x_dibujo, rect_b.bottom), (x_dibujo-5, rect_b.bottom-5), (x_dibujo+5, rect_b.bottom-5)])
-                
-                pantalla.blit(txt, txt.get_rect(center=(x_dibujo, cabeza_y - int(15*z))))
-
-            # Iconos de Estado (Dormir/Trabajar)
-            elif self.accion_actual == "TRABAJAR":
-                font = pygame.font.SysFont("Arial", int(12*z), bold=True)
-                pantalla.blit(font.render("!", True, (255, 255, 0)), (x_dibujo + int(8*z), cabeza_y))
-            elif self.accion_actual == "DORMIR":
-                 font = pygame.font.SysFont("Arial", int(12*z))
-                 pantalla.blit(font.render("z", True, (200, 200, 255)), (x_dibujo + int(8*z), cabeza_y))
-
-            # Barra de Energía
-            if self.necesidades["energia"] < 100:
-                width = int(20 * z)
-                height = int(3 * z)
-                if height < 1: height = 1
-                bar_x = x_dibujo - width // 2
-                bar_y = cabeza_y - int(8 * z)
-                pct = self.necesidades["energia"] / 100.0
-                pygame.draw.rect(pantalla, (50,50,50), (bar_x, bar_y, width, height))
-                pygame.draw.rect(pantalla, (0, 255, 100), (bar_x, bar_y, width * pct, height))

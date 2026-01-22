@@ -1,4 +1,2 @@
-pygame
-streamlit
-pandas
-watchdog
+fastapi
+uvicorn

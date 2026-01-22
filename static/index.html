@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vida Interior - Web Edition</title>
+    <style>
+        body { margin: 0; background: #111; color: white; overflow: hidden; font-family: sans-serif; }
+        #gameCanvas { display: block; }
+        #ui { position: absolute; top: 10px; left: 10px; pointer-events: none; }
+        .hud-panel { background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div class="hud-panel">
+            <h2 id="fecha">Año 1 | Mes 1 | Día 1</h2>
+            <div id="stats">Población: 0</div>
+            <div id="recursos">🌲 0 | 🪨 0 | 🍎 0</div>
+        </div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <script src="game.js"></script>
+</body>
+</html>

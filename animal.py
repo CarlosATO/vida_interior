@@ -1,4 +1,3 @@
-import pygame
 import random
 import math
 from config import *
@@ -64,37 +63,4 @@ class Animal:
             self.col = self.destino_col
             self.fila = self.destino_fila
             self.accion_actual = "COMER" # Al llegar, pastar
-
-    def dibujar(self, pantalla, mundo, camara_x, camara_y):
-        iso_x, iso_y = mundo.grid_to_iso(self.col, self.fila)
-        
-        try:
-            altura = mundo.obtener_altura(self.col, self.fila)
-        except:
-            altura = 0
-            
-        OFFSET_CAPAS = int(15 * mundo.zoom)
-        offset_y_terreno = (altura - 1) * OFFSET_CAPAS if altura > 0 else -10 
-        
-        x_dibujo = iso_x - camara_x
-        y_dibujo = iso_y - camara_y - offset_y_terreno
-        
-        z = mundo.zoom
-        
-        # --- DIBUJO ---
-        color = COLOR_GALLINA if self.tipo == "gallina" else COLOR_CABRA
-        radio = int(6 * z) if self.tipo == "gallina" else int(10 * z)
-        
-        # Sombra
-        pygame.draw.ellipse(pantalla, (0,0,0, 80), (x_dibujo - radio, y_dibujo - radio//2, radio*2, radio))
-        
-        # Cuerpo
-        pygame.draw.circle(pantalla, color, (x_dibujo, y_dibujo - radio), radio)
-        
-        # Detalle (Pico o Cuernos)
-        if self.tipo == "gallina":
-             pygame.draw.circle(pantalla, (255, 100, 0), (x_dibujo + int(4*z), y_dibujo - int(4*z)), int(3*z))
-        elif self.tipo == "cabra":
-             pygame.draw.line(pantalla, (50,50,50), (x_dibujo - int(2*z), y_dibujo - int(12*z)), (x_dibujo - int(8*z), y_dibujo - int(18*z)), int(2*z))
-             pygame.draw.line(pantalla, (50,50,50), (x_dibujo + int(2*z), y_dibujo - int(12*z)), (x_dibujo + int(8*z), y_dibujo - int(18*z)), int(2*z))
 
