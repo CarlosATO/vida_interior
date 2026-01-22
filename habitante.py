@@ -138,6 +138,30 @@ class Habitante:
             self.accion_actual = "CAMINAR"
             destino_final = datos
             
+            # --- NUEVO: COMPORTAMIENTO COMUNITARIO ---
+            # Si es de noche ( > 0.8) y no estamos durmiendo, ir al CENTRO
+            # Asumimos que el centro está cerca de COL//2, FIL//2
+            if mundo.tiempo > 0.82 and self.accion_actual != "DORMIR":
+                # Ir al centro urbano
+                cx, cy = COLUMNAS // 2, FILAS // 2
+                # Offset aleatorio alrededor de la fogata
+                destino_final = (cx + random.randint(-4, 4), cy + random.randint(-4, 4))
+                if not mundo.es_transitable(destino_final[0], destino_final[1]):
+                     destino_final = (cx, cy)
+                
+                # Al llegar, hablar
+                dist = math.sqrt((self.col - destino_final[0])**2 + (self.fila - destino_final[1])**2)
+                if dist < 3:
+                     self.accion_actual = "SOCIALIZAR"
+                     # Buscar a alguien para hablar
+                     for otro in habitantes:
+                         if otro != self:
+                             d_otro = math.sqrt((self.col - otro.col)**2 + (self.fila - otro.fila)**2)
+                             if d_otro < 4:
+                                 self.interactuar(otro)
+                                 break
+                     return
+
             # --- PETICIÓN DE RUTA (A*) ---
             start = (int(round(self.col)), int(round(self.fila)))
             if start != destino_final:

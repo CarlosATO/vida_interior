@@ -6,7 +6,7 @@ const TILE_WIDTH = 64;
 const TILE_HEIGHT = 32;
 let OFFSET_X = window.innerWidth / 2;
 let OFFSET_Y = 100;
-let ZOOM_LEVEL = 1.0;
+let ZOOM_LEVEL = 1.2;
 
 // Estado del Juego
 let mapa = null; // {filas, columnas, mapa[][], edificios[]}
@@ -65,7 +65,37 @@ canvas.addEventListener('mousemove', e => {
         lastMouseX = e.clientX;
         lastMouseY = e.clientY;
     }
+
+    // Calcular hover
+    // Inverso de gridToIso approx (más complejo por isometría)
+    // Simple Raycast visual: iterar tiles y ver cual esta cerca del mouse
+    // Optimización: Solo chequear si no arrastramos
+    mouseHover = null;
+    if (!isDragging && mapDataCache) {
+        // Busqueda aproximada
+        // isoX = (col - fila) * Tw/2 + offX
+        // isoY = (col + fila) * Th/2 + offY
+        // Despejando...
+
+        const adjX = e.clientX - OFFSET_X;
+        const adjY = e.clientY - OFFSET_Y;
+        const Tw = TILE_WIDTH * ZOOM_LEVEL;
+        const Th = TILE_HEIGHT * ZOOM_LEVEL;
+
+        // col = (adjX / (Tw/2) + adjY / (Th/2)) / 2
+        // fila = (adjY / (Th/2) - adjX / (Tw/2)) / 2
+
+        const colApprox = Math.floor((adjX / (Tw / 2) + adjY / (Th / 2)) / 2);
+        const rowApprox = Math.floor((adjY / (Th / 2) - adjX / (Tw / 2)) / 2);
+
+        if (mapDataCache.mapa[rowApprox] && mapDataCache.mapa[rowApprox][colApprox]) {
+            mouseHover = { c: colApprox, f: rowApprox };
+        }
+    }
 });
+
+let mouseHover = null;
+let mapDataCache = null;
 
 canvas.addEventListener('wheel', e => {
     e.preventDefault();
@@ -155,6 +185,27 @@ function draw() {
                 // Guardar la Y superior para dibujar objetos encima
                 tile._topY = drawY;
                 tile._screenX = pos.x;
+
+                // DRAW HOVER
+                if (mouseHover && mouseHover.c === c && mouseHover.f === f) {
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'overlay';
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    // Dibujar rombo aproximado
+                    ctx.beginPath();
+                    ctx.moveTo(pos.x, pos.y - (i * layerOffset)); // Top
+                    ctx.lineTo(pos.x + zoomTW / 2, pos.y + zoomTH / 2 - (i * layerOffset)); // Right
+                    ctx.lineTo(pos.x, pos.y + zoomTH - (i * layerOffset)); // Bottom
+                    ctx.lineTo(pos.x - zoomTW / 2, pos.y + zoomTH / 2 - (i * layerOffset)); // Left
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Borde
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.restore();
+                }
             }
         }
     }
@@ -275,5 +326,6 @@ fetch('/mapa')
     .then(res => res.json())
     .then(data => {
         mapa = data;
+        mapDataCache = data;
         loop(0);
     });

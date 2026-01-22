@@ -181,6 +181,47 @@ class Mundo:
         
         self.colocar_edificio(cx, cy, "centro")
         print(f"Centro urbano establecido en {cx}, {cy}")
+        
+        # --- NUEVO: ASEGURAR CONECTIVIDAD (FLOOD FILL) ---
+        self.asegurar_conectividad(cx, cy)
+
+    def asegurar_conectividad(self, start_x, start_y):
+        # 1. Identificar la isla principal usando Flood Fill desde el centro
+        visitados = set()
+        cola = [(start_x, start_y)]
+        visitados.add((start_x, start_y))
+        
+        while cola:
+            cx, cy = cola.pop(0)
+            
+            vecinos = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+            for dx, dy in vecinos:
+                nx, ny = cx + dx, cy + dy
+                
+                if 0 <= nx < COLUMNAS and 0 <= ny < FILAS:
+                    tile = self.mapa_logico[ny][nx]
+                    if (nx, ny) not in visitados and tile["transitable"]:
+                        visitados.add((nx, ny))
+                        cola.append((nx, ny))
+        
+        # 2. Eliminar islas desconectadas (las convertimos en agua)
+        # Opcional: construir puentes. Por ahora, limpiamos el mapa.
+        print(f"Isla principal: {len(visitados)} tiles.")
+        
+        cambios = 0
+        for f in range(FILAS):
+            for c in range(COLUMNAS):
+                if (c, f) not in visitados:
+                    tile = self.mapa_logico[f][c]
+                    if tile["transitable"] and tile["tipo"] != "agua":
+                        # Isla desconectada -> Convertir en agua
+                        tile["tipo"] = "agua"
+                        tile["transitable"] = False
+                        tile["altura"] = 0
+                        tile["recurso"] = None
+                        cambios += 1
+                        
+        print(f"Se eliminaron {cambios} tiles desconectados para asegurar una sola isla.")
 
     def obtener_recurso(self, col, fila):
         if 0 <= col < COLUMNAS and 0 <= fila < FILAS: return self.mapa_logico[int(fila)][int(col)]["recurso"]
