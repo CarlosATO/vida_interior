@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 import asyncio
 import os
@@ -202,7 +203,7 @@ async def get_mapa():
 
 @app.get("/")
 async def root():
-    return {"message": "Vida Interior API Running. Go to /static/index.html"}
+    return FileResponse("static/index.html")
 if __name__ == "__main__":
     import uvicorn
     # Hot reload para desarrollo local
