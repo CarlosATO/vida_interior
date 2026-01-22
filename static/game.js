@@ -312,15 +312,17 @@ function draw() {
 
                 // DRAW HOVER
                 if (mouseHover && mouseHover.c === c && mouseHover.f === f) {
+                    const topOffset = (capas - 1) * layerOffset; // Use highest layer
+
                     ctx.save();
                     ctx.globalCompositeOperation = 'overlay';
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
                     // Dibujar rombo aproximado
                     ctx.beginPath();
-                    ctx.moveTo(pos.x, pos.y - (i * layerOffset)); // Top
-                    ctx.lineTo(pos.x + zoomTW / 2, pos.y + zoomTH / 2 - (i * layerOffset)); // Right
-                    ctx.lineTo(pos.x, pos.y + zoomTH - (i * layerOffset)); // Bottom
-                    ctx.lineTo(pos.x - zoomTW / 2, pos.y + zoomTH / 2 - (i * layerOffset)); // Left
+                    ctx.moveTo(pos.x, pos.y - topOffset); // Top
+                    ctx.lineTo(pos.x + zoomTW / 2, pos.y + zoomTH / 2 - topOffset); // Right
+                    ctx.lineTo(pos.x, pos.y + zoomTH - topOffset); // Bottom
+                    ctx.lineTo(pos.x - zoomTW / 2, pos.y + zoomTH / 2 - topOffset); // Left
                     ctx.closePath();
                     ctx.fill();
 
