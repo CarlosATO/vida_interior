@@ -79,11 +79,11 @@ class Habitante:
         # 2. Consultar al CEREBRO
         orden, datos = self.cerebro.pensar(self, mundo, habitantes)
         
-        # Deterioro pasivo de necesidades (MAS LENTO para debug)
-        self.necesidades["hambre"] += 0.01 * self.personalidad["gloton"]
-        self.necesidades["sed"] += 0.02 # Sed sube moderado
-        self.necesidades["energia"] -= 0.005 * self.personalidad["trabajador"] 
-        self.necesidades["social"] -= 0.01 * self.personalidad["sociable"]
+        # Deterioro pasivo de necesidades (MAS RÁPIDO para debug/actividad)
+        self.necesidades["hambre"] += 0.05 * self.personalidad["gloton"]
+        self.necesidades["sed"] += 0.08 # Sed sube rápido
+        self.necesidades["energia"] -= 0.02 * self.personalidad["trabajador"] 
+        self.necesidades["social"] -= 0.02 * self.personalidad["sociable"]
         
         # Clamp valores
         for k in self.necesidades:

@@ -257,7 +257,15 @@ function update(timestamp) {
 }
 
 function updateUI(data) {
-    document.getElementById('fecha').innerText = `Año ${data.tiempo.anio} | Mes ${data.tiempo.mes} | Día ${data.tiempo.dia}`;
+    // Calcular hora (0.0 - 1.0 -> 00:00 - 24:00)
+    let hora_dec = data.tiempo.hora_global * 24;
+    let hora = Math.floor(hora_dec);
+    let min = Math.floor((hora_dec - hora) * 60);
+    // Formato HH:MM
+    let hh = hora.toString().padStart(2, '0');
+    let mm = min.toString().padStart(2, '0');
+
+    document.getElementById('fecha').innerText = `Año ${data.tiempo.anio} | Mes ${data.tiempo.mes} | Día ${data.tiempo.dia} | 🕒 ${hh}:${mm}`;
     document.getElementById('stats').innerText = `Población: ${data.stats.poblacion}`;
     const r = data.stats.recursos;
     document.getElementById('recursos').innerText = `🌲 ${r.madera} | 🪨 ${r.piedra} | 🍎 ${r.comida}`;

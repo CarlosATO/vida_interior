@@ -85,9 +85,9 @@ class Cerebro:
         objetivos = []
         
         # A. Supervivencia Inmediata
-        if cuerpo.necesidades["hambre"] > 50:
+        if cuerpo.necesidades["hambre"] > 30:
             objetivos.append(("saciado", 10))
-        if cuerpo.necesidades["sed"] > 50:
+        if cuerpo.necesidades["sed"] > 30:
             objetivos.append(("hidratado", 10))
         if cuerpo.necesidades["energia"] < 20:
              objetivos.append(("descansado", 10))
@@ -228,12 +228,15 @@ class Cerebro:
                 return self.plan_recolectar_algo(cuerpo, mundo) # Acumular recursos
             else:
                 acc_explorar = Accion("EXPLORAR")
-                # Generar punto random
-                dx = random.randint(-8, 8)
-                dy = random.randint(-8, 8)
-                nx, ny = int(cuerpo.col + dx), int(cuerpo.fila + dy)
-                acc_explorar.datos = (nx, ny)
-                return [acc_explorar] 
+                # Generar punto random VÁLIDO
+                for _ in range(10): # Intentos
+                    dx = random.randint(-8, 8)
+                    dy = random.randint(-8, 8)
+                    nx, ny = int(cuerpo.col + dx), int(cuerpo.fila + dy)
+                    if mundo.es_transitable(nx, ny):
+                        acc_explorar.datos = (nx, ny)
+                        return [acc_explorar]
+                return None 
 
         elif objetivo == "reproducirse":
             if cuerpo.pareja:
@@ -280,10 +283,14 @@ class Cerebro:
             return plan
         else:
              acc_explorar = Accion("EXPLORAR")
-             dx = random.randint(-8, 8)
-             dy = random.randint(-8, 8)
-             acc_explorar.datos = (int(cuerpo.col + dx), int(cuerpo.fila + dy))
-             return [acc_explorar] 
+             for _ in range(10):
+                 dx = random.randint(-8, 8)
+                 dy = random.randint(-8, 8)
+                 nx, ny = int(cuerpo.col + dx), int(cuerpo.fila + dy)
+                 if mundo.es_transitable(nx, ny):
+                     acc_explorar.datos = (nx, ny)
+                     return [acc_explorar]
+             return None 
 
     def buscar_recurso_cercano(self, cuerpo, tipos):
         mejor_dist = 9999
