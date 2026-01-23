@@ -7,6 +7,7 @@ RECETAS_UNIVERSALES = {
     # Nombre: {Inputs}, Output (implícito es 1 'Nombre')
     "Fuego": {"madera": 1, "piedra": 1},
     "Refugio": {"madera": 2, "piedra": 2},
+    "Casa": {"madera": 5, "piedra": 5},
     "Herramientas": {"madera": 1},
     "Rueda": {"madera": 2, "piedra": 1} # Ejemplo extra
 }
@@ -196,15 +197,44 @@ class Cerebro:
                      return [acc_explorar]
 
         elif objetivo == "descansado":
-            # Estrategia: Ir a casa (si hay) o dormir donde sea
-            if self.centro_mapa:
-                dist = self.distancia(cuerpo, self.centro_mapa)
-                if dist > 3:
+            # Estrategia: Buscar CASA > Construir CASA > Dormir suelo (emergencia)
+            
+            # 1. Buscar casa conocida
+            pos_casa = self.buscar_estructura_cercana(cuerpo, ["edificio_casa", "edificio_centro"])
+            
+            if pos_casa:
+                dist = self.distancia(cuerpo, pos_casa)
+                if dist > 1.5:
                      acc_ir = Accion("CAMINAR")
-                     acc_ir.datos = self.centro_mapa
-                     plan.append(acc_ir)
-            acc_dormir = Accion("DORMIR")
-            plan.append(acc_dormir)
+                     acc_ir.datos = pos_casa
+                     return [acc_ir]
+                else:
+                     # Ya estamos en casa
+                     acc_dormir = Accion("DORMIR")
+                     return [acc_dormir]
+            else:
+                # 2. No hay casa cerca. ¿Podemos construir una?
+                receta = RECETAS_UNIVERSALES["Casa"]
+                puede_construir = True
+                for ing, cant in receta.items():
+                    if cuerpo.inventario.get(ing, 0) < cant:
+                        puede_construir = False
+                        break
+                
+                if puede_construir:
+                    # Construir aquí mismo (o buscar lugar vacío?)
+                    # Por simplicidad, construimos donde estamos si es transitable
+                    acc_craft = Accion("CRAFT")
+                    acc_craft.datos = "Casa"
+                    
+                    acc_build = Accion("CONSTRUIR") # Asume que el craft habilita construir o consume resources directo
+                    acc_build.datos = "Casa"
+                    
+                    return [acc_craft, acc_build]
+                else:
+                    # 3. Necesitamos recursos para la casa
+                    # Priorizar madera/piedra
+                    return self.plan_recolectar_algo(cuerpo, mundo)
             return plan
 
         elif objetivo == "sabio":
@@ -291,6 +321,17 @@ class Cerebro:
                      acc_explorar.datos = (nx, ny)
                      return [acc_explorar]
              return None 
+
+    def buscar_estructura_cercana(self, cuerpo, tipos):
+        mejor_dist = 9999
+        mejor_pos = None
+        for pos, tipo_mem in cuerpo.memoria.items():
+            if tipo_mem in tipos:
+                d = self.distancia(cuerpo, pos)
+                if d < mejor_dist:
+                    mejor_dist = d
+                    mejor_pos = pos
+        return mejor_pos
 
     def buscar_recurso_cercano(self, cuerpo, tipos):
         mejor_dist = 9999

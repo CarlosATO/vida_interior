@@ -237,6 +237,19 @@ class Habitante:
                 print(f"🔨 {self.nombre} fabricó {receta_nombre}")
                 self.mensaje_actual = "🔨"
                 self.tiempo_bocadillo = 60
+
+        elif orden == "CONSTRUIR":
+            # datos = "TipoEdificio"
+            tipo_edificio = datos if datos else "casa"
+            # Colocar en el mundo
+            mundo.colocar_edificio(int(self.col), int(self.fila), tipo_edificio.lower())
+            
+            # Actualizar memoria propia y de testigos cercanos?
+            self.memoria[(int(self.col), int(self.fila))] = f"edificio_{tipo_edificio.lower()}"
+            
+            print(f"🏠 {self.nombre} construyó {tipo_edificio}")
+            self.mensaje_actual = "🏠"
+            self.tiempo_bocadillo = 120
         
         elif orden == "COMER":
             self.accion_actual = "COMER"
