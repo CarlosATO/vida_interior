@@ -47,6 +47,11 @@ class Cerebro:
                 if recurso:
                     cuerpo.memoria[(nx, ny)] = recurso
                 
+                # Detectar AGUA (No es un recurso per se, es un tipo de tile)
+                tipo_tile = mundo.obtener_tipo(nx, ny)
+                if tipo_tile == "agua":
+                    cuerpo.memoria[(nx, ny)] = "agua"
+                
                 if (nx, ny) in mundo.edificios:
                     cuerpo.memoria[(nx, ny)] = f"edificio_{mundo.edificios[(nx, ny)]}"
 

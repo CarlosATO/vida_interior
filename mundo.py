@@ -248,6 +248,9 @@ class Mundo:
     def es_transitable(self, col, fila):
         if 0 <= col < COLUMNAS and 0 <= fila < FILAS: return self.mapa_logico[int(fila)][int(col)]["transitable"]
         return False
+    def obtener_tipo(self, col, fila):
+        if 0 <= col < COLUMNAS and 0 <= fila < FILAS: return self.mapa_logico[int(fila)][int(col)]["tipo"]
+        return None
     def colocar_edificio(self, col, fila, tipo):
         if 0 <= col < COLUMNAS and 0 <= fila < FILAS:
             self.edificios[(col, fila)] = tipo
