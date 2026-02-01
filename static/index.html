@@ -31,6 +31,80 @@
             border-radius: 8px;
             margin-bottom: 10px;
         }
+
+        /* BITACORA STYLES */
+        #btn-bitacora {
+            pointer-events: auto;
+            background: rgba(50, 50, 100, 0.8);
+            border: 1px solid #66a;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        #bitacora-panel {
+            display: none;
+            /* Hidden by default */
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 300px;
+            height: 400px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 14px;
+            pointer-events: auto;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #222;
+        }
+
+        .log-fecha {
+            color: #888;
+            font-size: 11px;
+        }
+
+        .log-msg {
+            margin-top: 2px;
+        }
+
+        .type-muerte {
+            color: #ff6666;
+            font-weight: bold;
+        }
+
+        .type-nacimiento {
+            color: #66ff66;
+            font-weight: bold;
+        }
+
+        .type-amor {
+            color: #ff66cc;
+        }
+
+        .type-construccion {
+            color: #ffff66;
+        }
+
+        .type-descubrimiento {
+            color: #66ccff;
+        }
+
+        .type-trabajo {
+            color: #aaa;
+        }
+
+        .type-info {
+            color: #ddd;
+        }
     </style>
 </head>
 
@@ -40,8 +114,15 @@
             <h2 id="fecha">Año 1 | Mes 1 | Día 1</h2>
             <div id="stats">Población: 0</div>
             <div id="recursos">🌲 0 | 🪨 0 | 🍎 0</div>
+            <button id="btn-bitacora" onclick="toggleBitacora()">📜 Ver Bitácora</button>
         </div>
     </div>
+
+    <div id="bitacora-panel">
+        <h3>Bitácora del Mundo</h3>
+        <div id="log-list">Cargando...</div>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
     <script src="/static/game.js"></script>
 </body>

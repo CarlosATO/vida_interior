@@ -109,7 +109,7 @@ class Habitante:
                 # Beber
                 self.necesidades["sed"] = 0
                 self.necesidades["energia"] += 5
-                print(f"💧 {self.nombre} bebió agua.")
+                mundo.registrar_evento(f"💧 {self.nombre} bebió agua.", "info")
                 self.mensaje_actual = "💧"
                 self.tiempo_bocadillo = 60
 
@@ -153,7 +153,7 @@ class Habitante:
                              # ¡EUREKA!
                              self.conocimientos.append(receta)
                              self.es_heroe = True
-                             print(f"💡 ¡EUREKA! {self.nombre} descubrió: {receta} (experimentando)")
+                             mundo.registrar_evento(f"💡 ¡EUREKA! {self.nombre} descubrió: {receta}", "descubrimiento")
                              break
                              
         elif orden == "CAMINAR":
@@ -215,7 +215,7 @@ class Habitante:
                     nuevo.personalidad["sociable"] = (self.personalidad["sociable"] + self.pareja.personalidad["sociable"]) / 2
                     
                     habitantes.append(nuevo)
-                    print(f"👶 ¡Nació {nombre_hijo}! Hijos de {self.nombre} y {self.pareja.nombre}")
+                    mundo.registrar_evento(f"👶 ¡Nació {nombre_hijo}! ({self.nombre} + {self.pareja.nombre})", "nacimiento")
                     
                     self.mensaje_actual = "❤️"
                     self.tiempo_bocadillo = 120
@@ -234,7 +234,7 @@ class Habitante:
                 if "herramienta" in receta_nombre.lower():
                     self.personalidad["trabajador"] *= 1.2 # Mejora trabajador?
                 
-                print(f"🔨 {self.nombre} fabricó {receta_nombre}")
+                mundo.registrar_evento(f"🔨 {self.nombre} fabricó {receta_nombre}", "trabajo")
                 self.mensaje_actual = "🔨"
                 self.tiempo_bocadillo = 60
 
@@ -247,7 +247,7 @@ class Habitante:
             # Actualizar memoria propia y de testigos cercanos?
             self.memoria[(int(self.col), int(self.fila))] = f"edificio_{tipo_edificio.lower()}"
             
-            print(f"🏠 {self.nombre} construyó {tipo_edificio}")
+            mundo.registrar_evento(f"🏠 {self.nombre} construyó {tipo_edificio}", "construccion")
             self.mensaje_actual = "🏠"
             self.tiempo_bocadillo = 120
         
@@ -262,12 +262,12 @@ class Habitante:
                     mundo.eliminar_recurso(c_com, f_com)
                     self.necesidades["hambre"] = max(0, self.necesidades["hambre"] - 50)
                     self.necesidades["energia"] += 10
-                    print(f"{self.nombre}: Comí {recurso}.")
+                    mundo.registrar_evento(f"{self.nombre}: Comí {recurso}.", "info")
                 elif animal:
                     mundo.eliminar_animal(animal)
                     self.necesidades["hambre"] = max(0, self.necesidades["hambre"] - 80)
                     self.necesidades["energia"] += 20
-                    print(f"{self.nombre}: Cazó una {animal.tipo}.")
+                    mundo.registrar_evento(f"{self.nombre}: Cazó una {animal.tipo}.", "info")
                 else:
                     pass
 
@@ -298,7 +298,7 @@ class Habitante:
                 self.inventario["piedra"] += 1
                 mundo.recursos_totales["piedra"] += 1
                 
-            print(f"{self.nombre}: Terminó de recolectar {tipo}.")
+            mundo.registrar_evento(f"{self.nombre}: Terminó de recolectar {tipo}.", "trabajo")
             
             self.accion_actual = "ESPERAR"
             self.objetivo_trabajo = None
@@ -324,7 +324,7 @@ class Habitante:
                  if random.random() < 0.05:
                      self.pareja = otro
                      otro.pareja = self
-                     print(f"❤️ ¡{self.nombre} y {otro.nombre} son pareja!")
+                     mundo.registrar_evento(f"❤️ ¡{self.nombre} y {otro.nombre} son pareja!", "amor")
 
     def hablar(self, receptor):
         # Elegir qué contar (Prioridad: Tecnologías)
@@ -336,7 +336,7 @@ class Habitante:
         if tema not in receptor.conocimientos:
             # Receptor aprende!
             receptor.conocimientos.append(tema)
-            print(f"🗣️ {self.nombre} enseñó {tema} a {receptor.nombre}")
+            mundo.registrar_evento(f"🗣️ {self.nombre} enseñó {tema} a {receptor.nombre}", "info")
             
             # Visuals (Datos para el frontend)
             self.tiempo_bocadillo = 60

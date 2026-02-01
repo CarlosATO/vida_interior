@@ -23,7 +23,22 @@ class Mundo:
         # --- ANIMALES ---
         self.animales = []
         
+        # --- BITÁCORA (LOG DE EVENTOS) ---
+        self.bitacora = [] # Lista de {mensaje, tipo, fecha}
+
         self.generar_mundo_fractal()
+
+    def registrar_evento(self, mensaje, tipo="info"):
+        # Tipos: info, nacimiento, muerte, construccion, descubrimiento
+        fecha_str = f"A{self.anio}/M{self.mes}/D{self.dia}"
+        evento = {
+            "mensaje": mensaje,
+            "tipo": tipo,
+            "fecha": fecha_str
+        }
+        self.bitacora.insert(0, evento) # Insertar al inicio (más reciente primero)
+        if len(self.bitacora) > 50:
+            self.bitacora.pop() # Mantener solo 50 últimos
 
     def actualizar_tiempo(self):
         # Avanzar el tiempo

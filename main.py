@@ -102,12 +102,12 @@ async def bucle_simulacion():
                     
                     # --- SALUD Y MUERTE ---
                     if h.necesidades["hambre"] >= 100:
-                        print(f"💀 {h.nombre} ha muerto de hambre.")
+                        el_mundo.registrar_evento(f"💀 {h.nombre} murió de hambre.", "muerte")
                         habitantes.remove(h)
                         continue
                     
                     if h.necesidades["sed"] >= 100:
-                        print(f"💀 {h.nombre} ha muerto de sed.")
+                        el_mundo.registrar_evento(f"💀 {h.nombre} murió de sed.", "muerte")
                         habitantes.remove(h)
                         continue
                         
@@ -195,6 +195,10 @@ async def get_estado():
         "animales": data_animales,
         "recursos_mapa": data_recursos
     }
+    
+@app.get("/bitacora")
+async def get_bitacora():
+    return el_mundo.bitacora
 
 @app.get("/mapa")
 async def get_mapa():

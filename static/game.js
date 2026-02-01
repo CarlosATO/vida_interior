@@ -254,6 +254,11 @@ function update(timestamp) {
             .catch(err => console.error("Error fetching estado:", err));
         lastFetch = timestamp;
     }
+
+    // Check bitacora update
+    if (typeof checkBitacora === "function") {
+        checkBitacora(timestamp);
+    }
 }
 
 function updateUI(data) {
@@ -446,3 +451,55 @@ fetch('/mapa')
         mapDataCache = data;
         loop(0);
     });
+// --- BITÁCORA LOGIC ---
+let showingBitacora = false;
+let lastBitacoraFetch = 0;
+
+window.toggleBitacora = function () {
+    showingBitacora = !showingBitacora;
+    const panel = document.getElementById("bitacora-panel");
+    panel.style.display = showingBitacora ? "block" : "none";
+
+    if (showingBitacora) {
+        fetchBitacora();
+    }
+}
+
+function fetchBitacora() {
+    fetch('/bitacora')
+        .then(res => res.json())
+        .then(data => {
+            renderBitacora(data);
+        })
+        .catch(err => console.error("Error bitacora:", err));
+}
+
+function renderBitacora(logs) {
+    const list = document.getElementById("log-list");
+    if (!logs || logs.length === 0) {
+        list.innerHTML = "<div style='color:#666'>Sin eventos recientes.</div>";
+        return;
+    }
+
+    let html = "";
+    for (let log of logs) {
+        // Safe check for type
+        let typeClass = log.tipo ? `type-${log.tipo}` : 'type-info';
+        html += `
+            <div class="log-entry ${typeClass}">
+                <div class="log-fecha">${log.fecha}</div>
+                <div class="log-msg">${log.mensaje}</div>
+            </div>
+        `;
+    }
+    list.innerHTML = html;
+}
+
+// Hook into update loop
+// We need to call checkBitacora(timestamp) inside update()
+function checkBitacora(timestamp) {
+    if (showingBitacora && timestamp - lastBitacoraFetch > 2000) { // Update every 2s
+        fetchBitacora();
+        lastBitacoraFetch = timestamp;
+    }
+}
