@@ -42,11 +42,19 @@ el_mundo = None
 habitantes = []
 poblacion_historia = []  # Lista de (tiempo, poblacion)
 
+# Banco de nombres para bebés
+NOMBRES_MASCULINOS = ["Leo", "Liam", "Noah", "Oliver", "Elias", "Theo", "Max", "Felix", "Oscar", "Hugo", 
+                      "Gabriel", "Rafael", "Daniel", "Samuel", "David", "Miguel", "Adrian", "Bruno", "Aaron"]
+NOMBRES_FEMENINOS = ["Valentina", "Camila", "Lucia", "Martina", "Victoria", "Emma", "Olivia", "Ava", "Zoe",
+                     "Helena", "Julia", "Catalina", "Natalia", "Andrea", "Sara", "Elena", "Paula", "Laura"]
+nombres_usados = set()
+
 def inicializar_mundo():
-    global el_mundo, habitantes, poblacion_historia
+    global el_mundo, habitantes, poblacion_historia, nombres_usados
     el_mundo = Mundo()
     habitantes = []
     poblacion_historia = []
+    nombres_usados = set()  # Resetear nombres usados
     
     # --- SPAWN HABITANTES ---
     # Usar la ubicación del Centro Urbano determinada por el generador de Mundo
@@ -147,6 +155,7 @@ def inicializar_mundo():
             hab.personalidad["gloton"] = 1.1
         
         habitantes.append(hab)
+        nombres_usados.add(nombre)  # Registrar nombre usado
 
 # Inicializar al arranque
 inicializar_mundo()
@@ -192,12 +201,66 @@ async def bucle_simulacion():
                     # --- NACIMIENTOS ---
                     if h.accion_actual == "CORAZÓN":
                          if random.random() < 0.05:
-                            print(f"👶 ¡Un bebé ha nacido! Familia de {h.nombre}")
-                            bebe = Habitante(h.col, h.fila, f"Hijo de {h.nombre}", random.choice(["Masculino", "Femenino"]))
-                            bebe.personalidad["sociable"] = h.personalidad["sociable"]
+                            # Determinar género del bebé
+                            genero_bebe = random.choice(["Masculino", "Femenino"])
+                            
+                            # Seleccionar nombre único
+                            banco = NOMBRES_MASCULINOS if genero_bebe == "Masculino" else NOMBRES_FEMENINOS
+                            nombres_disponibles = [n for n in banco if n not in nombres_usados]
+                            
+                            if len(nombres_disponibles) == 0:
+                                # Generar nombre con sufijo si se agotaron nombres
+                                nombre_bebe = f"{'Hijo' if genero_bebe == 'Masculino' else 'Hija'}{len(habitantes)}"
+                            else:
+                                nombre_bebe = random.choice(nombres_disponibles)
+                                nombres_usados.add(nombre_bebe)
+                            
+                            # Crear bebé con herencia genética
+                            bebe = Habitante(h.col, h.fila, nombre_bebe, genero_bebe)
+                            
+                            # Establecer relaciones familiares
+                            if h.genero == "Femenino":
+                                bebe.madre = h
+                                bebe.padre = h.pareja if h.pareja else None
+                            else:
+                                bebe.padre = h
+                                bebe.madre = h.pareja if h.pareja else None
+                            
+                            # Agregar hijo a los padres
+                            h.hijos.append(bebe)
+                            if h.pareja:
+                                h.pareja.hijos.append(bebe)
+                            
+                            # Herencia genética: promedio de ambos padres con mutación
+                            if h.pareja:
+                                for trait in bebe.personalidad.keys():
+                                    herencia = (h.personalidad[trait] + h.pareja.personalidad[trait]) / 2
+                                    mutacion = random.uniform(-0.1, 0.1)
+                                    bebe.personalidad[trait] = max(0.5, min(2.0, herencia + mutacion))
+                            else:
+                                # Solo un padre: heredar con más mutación
+                                for trait in bebe.personalidad.keys():
+                                    herencia = h.personalidad[trait]
+                                    mutacion = random.uniform(-0.2, 0.2)
+                                    bebe.personalidad[trait] = max(0.5, min(2.0, herencia + mutacion))
+                            
+                            # Heredar conocimientos de los padres (transferencia cultural)
+                            if h.conocimientos:
+                                # Bebé aprende algunos conocimientos de los padres
+                                conocimientos_heredados = random.sample(h.conocimientos, min(len(h.conocimientos), 2))
+                                bebe.conocimientos.extend(conocimientos_heredados)
+                            
+                            if h.pareja and h.pareja.conocimientos:
+                                conocimientos_pareja = random.sample(h.pareja.conocimientos, min(len(h.pareja.conocimientos), 2))
+                                bebe.conocimientos.extend([c for c in conocimientos_pareja if c not in bebe.conocimientos])
+                            
                             nuevos_habitantes.append(bebe)
+                            el_mundo.registrar_evento(f"👶 ¡{nombre_bebe} ha nacido! Padres: {h.nombre} y {h.pareja.nombre if h.pareja else 'desconocido'}", "nacimiento")
+                            print(f"👶 ¡{nombre_bebe} ({genero_bebe}) ha nacido! Familia de {h.nombre}")
+                            
                             h.accion_actual = "ESPERAR"
-                            if h.pareja: h.pareja.accion_actual = "ESPERAR"
+                            if h.pareja: 
+                                h.pareja.accion_actual = "ESPERAR"
                 
                 habitantes.extend(nuevos_habitantes)
             

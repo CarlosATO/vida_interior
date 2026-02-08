@@ -56,6 +56,12 @@ class Habitante:
         # --- SOCIEDAD ---
         self.pareja = None
         self.compatibilidad = {} # {nombre_otro: 0-100}
+        
+        # --- FAMILIA ---
+        self.padre = None  # Referencia al padre
+        self.madre = None  # Referencia a la madre
+        self.hijos = []    # Lista de referencias a hijos
+        self.edad = 0      # Edad en ticks (para madurez)
 
         # --- CONOCIMIENTO (NUEVO) ---
         self.conocimientos = []
@@ -70,6 +76,9 @@ class Habitante:
         self.historia_decisiones = [] # Lista de dicts {tick, necesidades, decision, razon}
 
     def ejecutar_ordenes(self, mundo, habitantes):
+        # Incrementar edad
+        self.edad += 1
+        
         # 1. Si ya está ocupado...
         if self.moviendose:
             self.continuar_caminata()
@@ -273,6 +282,40 @@ class Habitante:
                     mundo.registrar_evento(f"{self.nombre}: Cazó una {animal.tipo}.", "info")
                 else:
                     pass
+        
+        elif orden == "ENSEÑAR":
+            self.accion_actual = "ENSEÑANDO"
+            hijo = datos  # El hijo a quien enseñar
+            
+            if hijo and hijo in habitantes:
+                dist = math.sqrt((self.col - hijo.col)**2 + (self.fila - hijo.fila)**2)
+                
+                if dist < 4:  # Están cerca
+                    # Transferir conocimientos que el hijo no tiene
+                    conocimientos_nuevos = [c for c in self.conocimientos if c not in hijo.conocimientos]
+                    
+                    if conocimientos_nuevos:
+                        # Enseñar uno o dos conocimientos
+                        ensenar = random.sample(conocimientos_nuevos, min(len(conocimientos_nuevos), 2))
+                        for conocimiento in ensenar:
+                            hijo.conocimientos.append(conocimiento)
+                        
+                        mundo.registrar_evento(
+                            f"👨‍👧 {self.nombre} enseñó {', '.join(ensenar)} a su hijo/a {hijo.nombre}", 
+                            "info"
+                        )
+                        
+                        # Visuals
+                        self.mensaje_actual = "📚"
+                        self.tiempo_bocadillo = 60
+                        hijo.mensaje_actual = "✨"
+                        hijo.tiempo_bocadillo = 60
+                        
+                        # Beneficios: aumenta vínculo social para ambos
+                        self.necesidades["social"] = min(100, self.necesidades["social"] + 20)
+                        hijo.necesidades["social"] = min(100, hijo.necesidades["social"] + 20)
+                        
+                    self.accion_actual = "ESPERAR"
 
     def continuar_trabajo(self, mundo):
         if not self.objetivo_trabajo:

@@ -110,17 +110,30 @@ class Cerebro:
 
         # DEBUG
         if random.random() < 0.05: print(f"🧠 {cuerpo.nombre}: {objetivos} -> {self.plan_actual}")
+        
+        # B. PROTECCIÓN FAMILIAR (Prioridad alta si tiene hijos)
+        if len(cuerpo.hijos) > 0:
+            # Enseñar conocimientos a los hijos
+            if len(cuerpo.conocimientos) > 0:
+                for hijo in cuerpo.hijos:
+                    # Solo enseñar si el hijo está cerca y despierto
+                    if hijo in habitantes:  # Verificar que el hijo siga vivo
+                        dist = math.sqrt((cuerpo.col - hijo.col)**2 + (cuerpo.fila - hijo.fila)**2)
+                        if dist < 30 and len(hijo.conocimientos) < len(cuerpo.conocimientos):
+                            objetivos.append(("enseñar_hijo", 12))
+                            razon_decision = "educacion_familiar"
+                            break
              
-        # B. Comodidad / Mantenimiento
+        # C. Comodidad / Mantenimiento
         if cuerpo.necesidades["energia"] < 60:
              objetivos.append(("descansado", 5))
              
-        # C. Ambición / Curiosidad (Si estamos bien)
+        # D. Ambición / Curiosidad (Si estamos bien)
         if cuerpo.necesidades["hambre"] < 20 and cuerpo.necesidades["energia"] > 60:
             objetivos.append(("sabio", 2)) # Descubrir cosas
             objetivos.append(("rico", 1)) # Acumular recursos
             
-        # D. Reproducción (La necesidad social y energía alta activan esto)
+        # E. Reproducción (La necesidad social y energía alta activan esto)
         if cuerpo.pareja and cuerpo.necesidades["social"] > 80 and cuerpo.necesidades["energia"] > 70:
             objetivos.append(("reproducirse", 15))
 
@@ -328,7 +341,33 @@ class Cerebro:
                  if posible:
                      acc = Accion("CRAFT")
                      acc.datos = nom
-                     return [acc] 
+                     return [acc]
+        
+        elif objetivo == "enseñar_hijo":
+            # Encontrar al hijo más cercano y enseñarle conocimientos
+            hijo_cercano = None
+            dist_minima = 999999
+            
+            for hijo in cuerpo.hijos:
+                if hijo in habitantes:  # Verificar que siga vivo
+                    dist = math.sqrt((cuerpo.col - hijo.col)**2 + (cuerpo.fila - hijo.fila)**2)
+                    if dist < dist_minima and len(hijo.conocimientos) < len(cuerpo.conocimientos):
+                        dist_minima = dist
+                        hijo_cercano = hijo
+            
+            if hijo_cercano:
+                plan = []
+                # Si está lejos, acercarse
+                if dist_minima > 3:
+                    acc_ir = Accion("CAMINAR")
+                    acc_ir.datos = (int(hijo_cercano.col), int(hijo_cercano.fila))
+                    plan.append(acc_ir)
+                
+                # Enseñar (acción SOCIALIZAR que transferirá conocimiento)
+                acc_ensenar = Accion("ENSEÑAR")
+                acc_ensenar.datos = hijo_cercano
+                plan.append(acc_ensenar)
+                return plan
 
         return None
 
