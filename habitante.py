@@ -65,6 +65,9 @@ class Habitante:
         # Estado Visual (Bocadillos)
         self.tiempo_bocadillo = 0
         self.mensaje_actual = ""
+        
+        # --- DATA SCIENCE (Logs) ---
+        self.historia_decisiones = [] # Lista de dicts {tick, necesidades, decision, razon}
 
     def ejecutar_ordenes(self, mundo, habitantes):
         # 1. Si ya está ocupado...
@@ -81,7 +84,7 @@ class Habitante:
         
         # Deterioro pasivo de necesidades (MAS RÁPIDO para debug/actividad)
         self.necesidades["hambre"] += 0.05 * self.personalidad["gloton"]
-        self.necesidades["sed"] += 0.08 # Sed sube rápido
+        self.necesidades["sed"] += 0.005 # Sed sube más lento para dar tiempo al cerebro
         self.necesidades["energia"] -= 0.02 * self.personalidad["trabajador"] 
         self.necesidades["social"] -= 0.02 * self.personalidad["sociable"]
         
@@ -180,7 +183,7 @@ class Habitante:
                          if otro != self:
                              d_otro = math.sqrt((self.col - otro.col)**2 + (self.fila - otro.fila)**2)
                              if d_otro < 4:
-                                 self.interactuar(otro)
+                                 self.interactuar(otro, mundo)
                                  break
                      return
 
@@ -303,7 +306,7 @@ class Habitante:
             self.accion_actual = "ESPERAR"
             self.objetivo_trabajo = None
 
-    def interactuar(self, otro):
+    def interactuar(self, otro, mundo):
         # Aumentar necesidad social
         self.necesidades["social"] = min(100, self.necesidades["social"] + 15)
         
@@ -315,7 +318,7 @@ class Habitante:
         # --- LENGUAJE & ENSEÑANZA VIRAL ---
         # Si somos sociables, intentamos enseñar algo
         if random.random() < 0.5 * self.personalidad["sociable"]:
-            self.hablar(otro)
+            self.hablar(otro, mundo)
 
         # Chance de enamorar
         comp = self.compatibilidad[otro.nombre]
@@ -326,7 +329,7 @@ class Habitante:
                      otro.pareja = self
                      mundo.registrar_evento(f"❤️ ¡{self.nombre} y {otro.nombre} son pareja!", "amor")
 
-    def hablar(self, receptor):
+    def hablar(self, receptor, mundo):
         # Elegir qué contar (Prioridad: Tecnologías)
         if not self.conocimientos: return # Nada que decir
         

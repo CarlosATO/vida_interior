@@ -82,6 +82,8 @@ class Cerebro:
                 accion = self.plan_actual.pop(0)
                 # Validar que sigue siendo posible (ej: el recurso sigue ahí?)
                 if accion.es_posible(cuerpo, mundo):
+                    # LOGGING DATA SCIENCE
+                    self.registrar_decision(cuerpo, accion.nombre, "continuar_plan", mundo.tiempo)
                     return accion.nombre, accion.datos
                 else:
                     self.plan_actual = [] # Plan roto, replanificar
@@ -89,14 +91,22 @@ class Cerebro:
         # --- PLANIFICADOR GOAP ---
         # 1. Definir Objetivos (Prioridad descendente)
         objetivos = []
+        razon_decision = "vida_normal"
         
         # A. Supervivencia Inmediata
         if cuerpo.necesidades["hambre"] > 30:
             objetivos.append(("saciado", 10))
+            razon_decision = "hambre"
+            
         if cuerpo.necesidades["sed"] > 30:
-            objetivos.append(("hidratado", 10))
+            prio = 10
+            if cuerpo.necesidades["sed"] > 50: prio = 50 # PÁNICO
+            objetivos.append(("hidratado", prio))
+            razon_decision = "sed"
+            
         if cuerpo.necesidades["energia"] < 20:
              objetivos.append(("descansado", 10))
+             razon_decision = "cansancio"
 
         # DEBUG
         if random.random() < 0.05: print(f"🧠 {cuerpo.nombre}: {objetivos} -> {self.plan_actual}")
@@ -140,9 +150,20 @@ class Cerebro:
                 self.plan_actual = plan
                 # Ejecutar primer paso de inmediato
                 primera = self.plan_actual.pop(0)
+                
+                # LOGGING DATA SCIENCE - Nueva Decisión
+                self.registrar_decision(cuerpo, primera.nombre, f"nueva_{objetivo}", mundo.tiempo)
+                
                 return primera.nombre, primera.datos
         
+        # LOGGING WAIT
+        self.registrar_decision(cuerpo, "ESPERAR", "sin_objetivos", mundo.tiempo)
         return "ESPERAR", None
+
+    # --- HELPER METHODS (Monkey patch o Mixin idealmente, pero aquí directo) ---
+    from cerebro_helpers import registrar_decision, buscar_agua_instinto
+    registrar_decision = registrar_decision
+    buscar_agua_instinto = buscar_agua_instinto
 
     def construir_plan(self, cuerpo, mundo, objetivo):
         # Un planner muy simple: Hardcoded strategies por ahora, 
@@ -167,7 +188,18 @@ class Cerebro:
                  plan.append(acc_beber)
                  return plan
              else:
-                 # Explorar para encontrar agua (ir hacia bordes/playa?)
+                 # Explorar para encontrar agua... 
+                 # INSTINTO DE SUPERVIVENCIA: Si la sed es crítica, OMNISCIENCIA
+                 if cuerpo.necesidades["sed"] > 30:
+                     # "Olfatear" agua en todo el mapa (cheat/instinto)
+                     pos_agua_instinto = self.buscar_agua_instinto(cuerpo, mundo)
+                     if pos_agua_instinto:
+                         cuerpo.memoria[pos_agua_instinto] = "agua" # Descubrir mágicamente
+                         
+                         acc_ir = Accion("CAMINAR")
+                         acc_ir.datos = pos_agua_instinto
+                         return [acc_ir]
+                 
                  acc_explorar = Accion("EXPLORAR")
                  # Asumir que agua suele estar en bordes o ríos
                  dx = random.randint(-15, 15)

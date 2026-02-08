@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analítica de Vida Interior</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: monospace;
+            background: #111;
+            color: #eee;
+            padding: 20px;
+        }
+
+        .card {
+            background: #222;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+
+        h1,
+        h2 {
+            color: #4af;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔬 Laboratorio de Datos de Comportamiento</h1>
+
+    <div class="card">
+        <h2>Últimas Decisiones (Tiempo Real)</h2>
+        <div id="log-container"
+            style="height: 200px; overflow-y: scroll; font-size: 12px; border: 1px solid #444; padding: 10px;">
+            Cargando datos...
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Evolución de Necesidades (Promedio)</h2>
+            <canvas id="needsChart"></canvas>
+        </div>
+        <div class="card">
+            <h2>Distribución de Acciones</h2>
+            <canvas id="actionsChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Estadísticas Agregadas</h2>
+        <div id="stats-container">
+            Cargando estadísticas...
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Evolución Poblacional</h2>
+            <canvas id="populationChart"></canvas>
+        </div>
+        <div class="card">
+            <h2>Agrupaciones por Nodos</h2>
+            <div id="groups-container">
+                Cargando agrupaciones...
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Exportar Datos para Análisis Offline</h2>
+        <button onclick="exportarDatos()">Descargar Datos JSON</button>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Muertes por Causa</h2>
+            <canvas id="deathsChart"></canvas>
+        </div>
+        <div class="card">
+            <h2>Decisiones por Tipo</h2>
+            <canvas id="decisionsChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let needsChart, actionsChart, deathsChart, decisionsChart, populationChart;
+
+        async function updateData() {
+            try {
+                const response = await fetch('/analisis');
+                const data = await response.json();
+
+                const statsResponse = await fetch('/estadisticas');
+                const stats = await statsResponse.json();
+
+                if (data.length === 0) return;
+
+                // 1. Llenar Log
+                const logDiv = document.getElementById('log-container');
+                const ultimos = data.slice(-20).reverse();
+                logDiv.innerHTML = ultimos.map(r =>
+                    `[T${r.t.toFixed(1)}] <b>${r.nombre}</b>: ${r.decision} (Razón: ${r.razon}) - Sed: ${r.sed}`
+                ).join('<br>');
+
+                // 2. Estadísticas Agregadas
+                const statsDiv = document.getElementById('stats-container');
+                statsDiv.innerHTML = `
+                    <p>Habitantes Vivos: ${stats.habitantes_vivos}</p>
+                    <p>Total Decisiones: ${stats.total_decisiones}</p>
+                    <p>Tiempo Actual: ${stats.tiempo_actual.toFixed(1)}</p>
+                    <p>Necesidades Promedio: Hambre ${stats.necesidades_promedio.hambre.toFixed(1)}, Sed ${stats.necesidades_promedio.sed.toFixed(1)}, Energía ${stats.necesidades_promedio.energia.toFixed(1)}, Social ${stats.necesidades_promedio.social.toFixed(1)}</p>
+                `;
+
+                // 3. Agrupaciones
+                const groupsDiv = document.getElementById('groups-container');
+                if (stats.agrupaciones.length > 0) {
+                    groupsDiv.innerHTML = stats.agrupaciones.map(g => `<p>Grupo: ${g.join(', ')}</p>`).join('');
+                } else {
+                    groupsDiv.innerHTML = '<p>No hay agrupaciones detectadas.</p>';
+                }
+
+                // 4. Delitos
+                const delitosDiv = document.getElementById('delitos-container');
+                if (stats.delitos.length > 0) {
+                    delitosDiv.innerHTML = stats.delitos.map(d => `<p>${d.habitante}: ${d.delito} (T${d.tiempo})</p>`).join('');
+                } else {
+                    delitosDiv.innerHTML = '<p>No hay delitos registrados.</p>';
+                }
+
+                // 5. Gráficos
+                processCharts(data, stats);
+
+            } catch (e) {
+                console.error("Error fetching data", e);
+            }
+        }
+
+        function processCharts(data, stats) {
+            // Gráfico de necesidades (existente)
+            const timeBuckets = {};
+            data.forEach(r => {
+                const t = Math.floor(r.t);
+                if (!timeBuckets[t]) timeBuckets[t] = { count: 0, hambre: 0, sed: 0, energia: 0, social: 0 };
+                timeBuckets[t].count++;
+                timeBuckets[t].hambre += r.hambre;
+                timeBuckets[t].sed += r.sed;
+                timeBuckets[t].energia += r.energia;
+                timeBuckets[t].social += r.social;
+            });
+
+            const labels = Object.keys(timeBuckets).sort((a, b) => a - b);
+            const hambreData = labels.map(t => timeBuckets[t].hambre / timeBuckets[t].count);
+            const sedData = labels.map(t => timeBuckets[t].sed / timeBuckets[t].count);
+
+            if (!needsChart) {
+                const ctx = document.getElementById('needsChart').getContext('2d');
+                needsChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Hambre', data: hambreData, borderColor: 'orange' },
+                            { label: 'Sed', data: sedData, borderColor: 'cyan' }
+                        ]
+                    },
+                    options: { responsive: true, animation: false }
+                });
+            } else {
+                needsChart.data.labels = labels;
+                needsChart.data.datasets[0].data = hambreData;
+                needsChart.data.datasets[1].data = sedData;
+                needsChart.update('none');
+            }
+
+            // Pie Chart de acciones (existente)
+            const acciones = {};
+            data.forEach(r => {
+                acciones[r.decision] = (acciones[r.decision] || 0) + 1;
+            });
+
+            if (!actionsChart) {
+                const ctx2 = document.getElementById('actionsChart').getContext('2d');
+                actionsChart = new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(acciones),
+                        datasets: [{
+                            data: Object.values(acciones),
+                            backgroundColor: ['#f88', '#8f8', '#88f', '#ff8', '#8ff', '#f8f']
+                        }]
+                    }
+                });
+            } else {
+                actionsChart.data.labels = Object.keys(acciones);
+                actionsChart.data.datasets[0].data = Object.values(acciones);
+                actionsChart.update();
+            }
+
+            // Nuevo: Gráfico de muertes
+            if (!deathsChart) {
+                const ctx3 = document.getElementById('deathsChart').getContext('2d');
+                deathsChart = new Chart(ctx3, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(stats.muertes_por_causa),
+                        datasets: [{
+                            label: 'Muertes',
+                            data: Object.values(stats.muertes_por_causa),
+                            backgroundColor: ['red', 'blue']
+                        }]
+                    },
+                    options: { responsive: true }
+                });
+            } else {
+                deathsChart.data.labels = Object.keys(stats.muertes_por_causa);
+                deathsChart.data.datasets[0].data = Object.values(stats.muertes_por_causa);
+                deathsChart.update();
+            }
+
+            // Nuevo: Gráfico de población
+            if (!populationChart) {
+                const ctx5 = document.getElementById('populationChart').getContext('2d');
+                populationChart = new Chart(ctx5, {
+                    type: 'line',
+                    data: {
+                        labels: stats.evolucion_poblacion.map(p => p[0]),
+                        datasets: [{
+                            label: 'Población',
+                            data: stats.evolucion_poblacion.map(p => p[1]),
+                            borderColor: 'green'
+                        }]
+                    },
+                    options: { responsive: true }
+                });
+            } else {
+                populationChart.data.labels = stats.evolucion_poblacion.map(p => p[0]);
+                populationChart.data.datasets[0].data = stats.evolucion_poblacion.map(p => p[1]);
+                populationChart.update();
+            }
+
+        setInterval(updateData, 2000); // Update every 2s
+        updateData();
+
+        async function exportarDatos() {
+            try {
+                const response = await fetch('/exportar_datos');
+                const data = await response.json();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'datos_vida_interior.json';
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error("Error exportando datos", e);
+            }
+        }
+    </script>
+</body>
+
+</html>

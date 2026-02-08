@@ -140,8 +140,8 @@ class Mundo:
                 ny = 2 * fila / FILAS - 1
                 distancia_centro = math.sqrt(nx*nx + ny*ny)
                 
-                mascara = (1 - distancia_centro * 1.2)
-                elevacion = ruido + mascara * 2 - 1.5 
+                mascara = (1 - distancia_centro * 1.0) # Menos agresivo (era 1.2)
+                elevacion = ruido + mascara * 2 - 1.2  # Ajuste de nivel del mar 
                 
                 if distancia_centro > 0.85: elevacion = -2.0 
                 
@@ -197,46 +197,86 @@ class Mundo:
         self.colocar_edificio(cx, cy, "centro")
         print(f"Centro urbano establecido en {cx}, {cy}")
         
-        # --- NUEVO: ASEGURAR CONECTIVIDAD (FLOOD FILL) ---
-        self.asegurar_conectividad(cx, cy)
+        # 3. IDENTIFICAR LA MEJOR ISLA (La más grande)
+        # en lugar de forzar el centro y borrar el resto.
+        self.asegurar_mejor_isla()
 
-    def asegurar_conectividad(self, start_x, start_y):
-        # 1. Identificar la isla principal usando Flood Fill desde el centro
+    def asegurar_mejor_isla(self):
+        # Encontrar todas las islas (connected components)
         visitados = set()
-        cola = [(start_x, start_y)]
-        visitados.add((start_x, start_y))
+        islas = [] # Lista de (tamaño, semilla_x, semilla_y, set_coordenadas)
         
-        while cola:
-            cx, cy = cola.pop(0)
-            
-            vecinos = [(0, 1), (0, -1), (1, 0), (-1, 0)]
-            for dx, dy in vecinos:
-                nx, ny = cx + dx, cy + dy
-                
-                if 0 <= nx < COLUMNAS and 0 <= ny < FILAS:
-                    tile = self.mapa_logico[ny][nx]
-                    if (nx, ny) not in visitados and tile["transitable"]:
-                        visitados.add((nx, ny))
-                        cola.append((nx, ny))
-        
-        # 2. Eliminar islas desconectadas (las convertimos en agua)
-        # Opcional: construir puentes. Por ahora, limpiamos el mapa.
-        print(f"Isla principal: {len(visitados)} tiles.")
-        
-        cambios = 0
         for f in range(FILAS):
             for c in range(COLUMNAS):
                 if (c, f) not in visitados:
                     tile = self.mapa_logico[f][c]
                     if tile["transitable"] and tile["tipo"] != "agua":
-                        # Isla desconectada -> Convertir en agua
-                        tile["tipo"] = "agua"
-                        tile["transitable"] = False
-                        tile["altura"] = 0
-                        tile["recurso"] = None
-                        cambios += 1
+                        # Nueva isla encontrada, hacer flood fill
+                        componente = set()
+                        cola = [(c, f)]
+                        visitados.add((c, f))
+                        componente.add((c, f))
                         
-        print(f"Se eliminaron {cambios} tiles desconectados para asegurar una sola isla.")
+                        while cola:
+                            curr_x, curr_y = cola.pop(0)
+                            vecinos = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+                            for dx, dy in vecinos:
+                                nx, ny = curr_x + dx, curr_y + dy
+                                if 0 <= nx < COLUMNAS and 0 <= ny < FILAS:
+                                    ntile = self.mapa_logico[ny][nx]
+                                    if (nx, ny) not in visitados and ntile["transitable"] and ntile["tipo"] != "agua":
+                                        visitados.add((nx, ny))
+                                        componente.add((nx, ny))
+                                        cola.append((nx, ny))
+                        
+                        islas.append((len(componente), c, f, componente))
+        
+        # Ordenar islas por tamaño descendente
+        islas.sort(key=lambda x: x[0], reverse=True)
+        
+        if not islas:
+            print("¡Error Crítico! No se generó tierra firme. Reintentando...")
+            self.generar_mundo_fractal() # Recursión peligrosa pero necesaria si falla todo
+            return
+
+        mejor_isla = islas[0]
+        print(f"Isla seleccionada: {mejor_isla[0]} tiles de tierra.")
+        
+        # Guardar tiles de la mejor isla
+        tiles_validos = mejor_isla[3]
+        
+        # Eliminar todo lo que NO sea la mejor isla (limpieza)
+        cambios = 0
+        for f in range(FILAS):
+            for c in range(COLUMNAS):
+                if (c, f) not in tiles_validos:
+                    self.mapa_logico[f][c]["tipo"] = "agua"
+                    self.mapa_logico[f][c]["transitable"] = False
+                    self.mapa_logico[f][c]["altura"] = 0
+                    self.mapa_logico[f][c]["recurso"] = None
+                    cambios += 1
+        print(f"Mundo limpiado. {cambios} tiles convertidos en agua.")
+        
+        # RE-ORIENTAR EL CENTRO DEL MUNDO (Para el spawn de habitantes)
+        # Calculamos el centro de masa de la isla
+        sum_x = sum(p[0] for p in tiles_validos)
+        sum_y = sum(p[1] for p in tiles_validos)
+        center_x = int(sum_x / len(tiles_validos))
+        center_y = int(sum_y / len(tiles_validos))
+        
+        # Guardamos este "centro de spawn" en una variable de clase o modificamos el mapa para marcarlo?
+        # Mejor: Colocamos el edificio "centro" ahí.
+        
+        # Primero borrar centro anterior si existía
+        self.edificios = {} 
+        
+        # Asegurar terreno bajo el nuevo centro
+        self.mapa_logico[center_y][center_x]["transitable"] = True
+        self.mapa_logico[center_y][center_x]["tipo"] = "pasto"
+        self.mapa_logico[center_y][center_x]["recurso"] = None
+        
+        self.colocar_edificio(center_x, center_y, "centro")
+        print(f"Nuevo Centro Urbano establecido en {center_x}, {center_y}")
 
     def obtener_recurso(self, col, fila):
         if 0 <= col < COLUMNAS and 0 <= fila < FILAS: return self.mapa_logico[int(fila)][int(col)]["recurso"]

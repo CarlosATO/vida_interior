@@ -40,41 +40,35 @@ app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 # Variable Global del Mundo
 el_mundo = None
 habitantes = []
+poblacion_historia = []  # Lista de (tiempo, poblacion)
 
 def inicializar_mundo():
-    global el_mundo, habitantes
+    global el_mundo, habitantes, poblacion_historia
     el_mundo = Mundo()
     habitantes = []
+    poblacion_historia = []
     
-    # --- FUNDAR CIUDAD ---
-    centro_c = COLUMNAS // 2
-    centro_f = FILAS // 2
+    # --- SPAWN HABITANTES ---
+    # Usar la ubicación del Centro Urbano determinada por el generador de Mundo
+    base_x, base_y = COLUMNAS // 2, FILAS // 2 # Default fallback
     
-    # Buscar un lugar plano cerca del centro para la base
-    print("Buscando lugar para el Centro Urbano...")
-    base_x, base_y = centro_c, centro_f
-    encontrado = False
-    for radio in range(0, 10):
-        for dc in range(-radio, radio+1):
-            for df in range(-radio, radio+1):
-                check_c, check_f = centro_c + dc, centro_f + df
-                if 0 <= check_c < COLUMNAS and 0 <= check_f < FILAS:
-                    tile = el_mundo.mapa_logico[check_f][check_c]
-                    if tile["tipo"] != "agua" and tile["tipo"] != "piedra":
-                        base_x, base_y = check_c, check_f
-                        el_mundo.colocar_edificio(base_x, base_y, "centro")
-                        encontrado = True
-                        break
-            if encontrado: break
-        if encontrado: break
-    
+    # Buscar el edificio centro
+    for pos, tipo in el_mundo.edificios.items():
+        if tipo == "centro":
+            base_x, base_y = pos
+            break
+            
     # Crear habitantes ALREDEDOR de la base
     nombres = [("Emilia", "Femenino"), ("Sofia", "Femenino"), ("Mateo", "Masculino")]
     for nombre, genero in nombres:
         # Nacen al lado de la casa
         c = base_x + random.randint(-2, 2)
         f = base_y + random.randint(-2, 2)
-        habitantes.append(Habitante(c, f, nombre, genero))
+        # Asegurar que caigan en tierra
+        if el_mundo.es_transitable(c, f):
+            habitantes.append(Habitante(c, f, nombre, genero))
+        else:
+            habitantes.append(Habitante(base_x, base_y, nombre, genero))
 
 # Inicializar al arranque
 inicializar_mundo()
@@ -90,6 +84,12 @@ async def bucle_simulacion():
             if el_mundo:
                 nuevo_dia = el_mundo.actualizar_tiempo()
                 el_mundo.actualizar_naturaleza()
+                
+                # Registrar población histórica
+                if len(poblacion_historia) == 0 or el_mundo.tiempo - poblacion_historia[-1][0] >= 0.01:
+                    poblacion_historia.append((round(el_mundo.tiempo, 2), len(habitantes)))
+                    if len(poblacion_historia) > 1000:
+                        poblacion_historia.pop(0)
                 
                 # 2. ANIMALES
                 for animal in el_mundo.animales:
@@ -199,6 +199,98 @@ async def get_estado():
 @app.get("/bitacora")
 async def get_bitacora():
     return el_mundo.bitacora
+
+@app.get("/analisis")
+async def get_analisis():
+    # Consolidar datos de todos los habitantes vivos
+    data = []
+    for h in habitantes:
+        # Añadir metadatos del habitante a cada registro
+        for record in h.historia_decisiones:
+            r = record.copy()
+            r["nombre"] = h.nombre
+            r["genero"] = h.genero
+            data.append(r)
+    return data
+
+@app.get("/estadisticas")
+async def get_estadisticas():
+    # Estadísticas agregadas
+    total_decisiones = 0
+    decisiones_por_tipo = {}
+    muertes_por_causa = {"hambre": 0, "sed": 0}
+    necesidades_promedio = {"hambre": 0, "sed": 0, "energia": 0, "social": 0}
+    habitantes_vivos = len(habitantes)
+    
+    # Procesar bitácora para muertes
+    for evento in el_mundo.bitacora:
+        if "murió de hambre" in evento["mensaje"]:
+            muertes_por_causa["hambre"] += 1
+        elif "murió de sed" in evento["mensaje"]:
+            muertes_por_causa["sed"] += 1
+    
+    # Procesar decisiones
+    for h in habitantes:
+        total_decisiones += len(h.historia_decisiones)
+        for record in h.historia_decisiones:
+            tipo = record["decision"]
+            decisiones_por_tipo[tipo] = decisiones_por_tipo.get(tipo, 0) + 1
+            for nec in necesidades_promedio:
+                necesidades_promedio[nec] += record.get(nec, 0)
+    
+    # Promedios
+    if total_decisiones > 0:
+        for nec in necesidades_promedio:
+            necesidades_promedio[nec] /= total_decisiones
+    
+    # Evolución poblacional
+    evolucion_poblacion = poblacion_historia
+    
+    # Agrupaciones: Clusters simples por proximidad
+    grupos = []
+    visitados = set()
+    for h in habitantes:
+        if h.nombre in visitados: continue
+        grupo = [h.nombre]
+        visitados.add(h.nombre)
+        for otro in habitantes:
+            if otro.nombre not in visitados:
+                dist = ((h.col - otro.col)**2 + (h.fila - otro.fila)**2)**0.5
+                if dist < 5:  # Radio de agrupación
+                    grupo.append(otro.nombre)
+                    visitados.add(otro.nombre)
+        if len(grupo) > 1:
+            grupos.append(grupo)
+    
+    # Delitos: Decisiones negativas (ej. esperar por inactividad, o si hambre alta y no come)
+    delitos = []
+    for h in habitantes:
+        for record in h.historia_decisiones[-10:]:  # Últimas 10
+            if record["decision"] == "ESPERAR" and record["hambre"] > 80:
+                delitos.append({"habitante": h.nombre, "delito": "Inactividad con hambre alta", "tiempo": record["t"]})
+    
+    return {
+        "habitantes_vivos": habitantes_vivos,
+        "total_decisiones": total_decisiones,
+        "decisiones_por_tipo": decisiones_por_tipo,
+        "muertes_por_causa": muertes_por_causa,
+        "necesidades_promedio": necesidades_promedio,
+        "evolucion_poblacion": evolucion_poblacion,
+        "agrupaciones": grupos,
+        "delitos": delitos,
+        "tiempo_actual": el_mundo.tiempo
+    }
+
+@app.get("/exportar_datos")
+async def exportar_datos():
+    # Exportar todo el dataset para análisis offline
+    data = []
+    for h in habitantes:
+        for record in h.historia_decisiones:
+            r = record.copy()
+            r["habitante"] = h.nombre
+            data.append(r)
+    return {"data": data, "bitacora": el_mundo.bitacora, "poblacion_historia": poblacion_historia}
 
 @app.get("/mapa")
 async def get_mapa():
