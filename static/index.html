@@ -44,6 +44,23 @@
             margin-top: 10px;
         }
 
+        #btn-analisis {
+            pointer-events: auto;
+            background: rgba(50, 100, 50, 0.8);
+            border: 1px solid #6a6;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        #btn-analisis:hover {
+            background: rgba(60, 120, 60, 0.9);
+        }
+
         #bitacora-panel {
             display: none;
             /* Hidden by default */
@@ -116,7 +133,7 @@
             <div id="recursos">🌲 0 | 🪨 0 | 🍎 0</div>
             <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #444;">
                 <button id="btn-bitacora" onclick="toggleBitacora()">📜 ABRIR BITÁCORA</button>
-                <button onclick="window.open('/analisis', '_blank')">📊 ABRIR ANÁLISIS</button>
+                <a href="/analisis" target="_blank" id="btn-analisis">📊 ABRIR ANÁLISIS</a>
             </div>
         </div>
     </div>

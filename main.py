@@ -58,17 +58,95 @@ def inicializar_mundo():
             base_x, base_y = pos
             break
             
-    # Crear habitantes ALREDEDOR de la base
-    nombres = [("Emilia", "Femenino"), ("Sofia", "Femenino"), ("Mateo", "Masculino")]
+    # Crear habitantes ALREDEDOR de la base - 10 habitantes con personalidades variadas
+    nombres = [
+        # Mujeres
+        ("Emma", "Femenino"),
+        ("Sofia", "Femenino"),
+        ("Isabella", "Femenino"),
+        ("Mia", "Femenino"),
+        ("Luna", "Femenino"),
+        # Hombres
+        ("Mateo", "Masculino"),
+        ("Lucas", "Masculino"),
+        ("Diego", "Masculino"),
+        ("Santiago", "Masculino"),
+        ("Sebastian", "Masculino")
+    ]
+    
     for nombre, genero in nombres:
-        # Nacen al lado de la casa
-        c = base_x + random.randint(-2, 2)
-        f = base_y + random.randint(-2, 2)
+        # Nacen al lado de la casa con distribución más amplia
+        c = base_x + random.randint(-4, 4)
+        f = base_y + random.randint(-4, 4)
         # Asegurar que caigan en tierra
         if el_mundo.es_transitable(c, f):
-            habitantes.append(Habitante(c, f, nombre, genero))
+            hab = Habitante(c, f, nombre, genero)
         else:
-            habitantes.append(Habitante(base_x, base_y, nombre, genero))
+            hab = Habitante(base_x, base_y, nombre, genero)
+        
+        # Personalidades variadas para cada habitante
+        if nombre == "Emma":
+            # Muy social y curiosa
+            hab.personalidad["sociable"] = 1.5
+            hab.personalidad["curioso"] = 1.4
+            hab.personalidad["trabajador"] = 0.9
+            hab.personalidad["gloton"] = 0.8
+        elif nombre == "Sofia":
+            # Trabajadora incansable
+            hab.personalidad["trabajador"] = 1.6
+            hab.personalidad["gloton"] = 1.2
+            hab.personalidad["sociable"] = 0.7
+            hab.personalidad["curioso"] = 0.9
+        elif nombre == "Isabella":
+            # Exploradora curiosa
+            hab.personalidad["curioso"] = 1.7
+            hab.personalidad["trabajador"] = 1.1
+            hab.personalidad["sociable"] = 1.0
+            hab.personalidad["gloton"] = 0.7
+        elif nombre == "Mia":
+            # Equilibrada
+            hab.personalidad["sociable"] = 1.0
+            hab.personalidad["trabajador"] = 1.0
+            hab.personalidad["curioso"] = 1.0
+            hab.personalidad["gloton"] = 1.0
+        elif nombre == "Luna":
+            # Introvertida y reflexiva
+            hab.personalidad["sociable"] = 0.6
+            hab.personalidad["curioso"] = 1.3
+            hab.personalidad["trabajador"] = 0.8
+            hab.personalidad["gloton"] = 0.9
+        elif nombre == "Mateo":
+            # Líder nato, sociable y trabajador
+            hab.personalidad["sociable"] = 1.4
+            hab.personalidad["trabajador"] = 1.3
+            hab.personalidad["curioso"] = 1.1
+            hab.personalidad["gloton"] = 0.9
+        elif nombre == "Lucas":
+            # Innovador curioso
+            hab.personalidad["curioso"] = 1.8
+            hab.personalidad["trabajador"] = 1.2
+            hab.personalidad["sociable"] = 0.9
+            hab.personalidad["gloton"] = 0.8
+        elif nombre == "Diego":
+            # Superviviente pragmático
+            hab.personalidad["gloton"] = 1.5
+            hab.personalidad["trabajador"] = 1.4
+            hab.personalidad["sociable"] = 0.8
+            hab.personalidad["curioso"] = 0.7
+        elif nombre == "Santiago":
+            # Carismático social
+            hab.personalidad["sociable"] = 1.7
+            hab.personalidad["curioso"] = 1.2
+            hab.personalidad["trabajador"] = 0.8
+            hab.personalidad["gloton"] = 0.9
+        elif nombre == "Sebastian":
+            # Solitario eficiente
+            hab.personalidad["trabajador"] = 1.5
+            hab.personalidad["sociable"] = 0.6
+            hab.personalidad["curioso"] = 1.0
+            hab.personalidad["gloton"] = 1.1
+        
+        habitantes.append(hab)
 
 # Inicializar al arranque
 inicializar_mundo()
@@ -201,6 +279,10 @@ async def get_bitacora():
     return el_mundo.bitacora
 
 @app.get("/analisis")
+async def analisis_dashboard():
+    return FileResponse("static/analisis.html")
+
+@app.get("/api/analisis")
 async def get_analisis():
     # Consolidar datos de todos los habitantes vivos
     data = []
@@ -213,7 +295,7 @@ async def get_analisis():
             data.append(r)
     return data
 
-@app.get("/estadisticas")
+@app.get("/api/estadisticas")
 async def get_estadisticas():
     # Estadísticas agregadas
     total_decisiones = 0
@@ -281,7 +363,7 @@ async def get_estadisticas():
         "tiempo_actual": el_mundo.tiempo
     }
 
-@app.get("/exportar_datos")
+@app.get("/api/exportar_datos")
 async def exportar_datos():
     # Exportar todo el dataset para análisis offline
     data = []
@@ -304,25 +386,9 @@ async def get_mapa():
 
 @app.post("/reiniciar")
 async def reiniciar():
-    global el_mundo, habitantes
-    from mundo import Mundo
-    from habitante import Habitante
-    from config import COLUMNAS, FILAS
-    import random
-    
     print("🔁 Reiniciando mundo...")
-    el_mundo = Mundo()
-    habitantes.clear()
-    
-    # Re-spam habitantes base
-    base_x, base_y = COLUMNAS // 2, FILAS // 2
-    nombres = [("Emilia", "Femenino"), ("Sofia", "Femenino"), ("Mateo", "Masculino")]
-    for nombre, genero in nombres:
-        c = base_x + random.randint(-2, 2)
-        f = base_y + random.randint(-2, 2)
-        habitantes.append(Habitante(c, f, nombre, genero))
-        
-    return {"mensaje": "Mundo reiniciado correctamente"}
+    inicializar_mundo()
+    return {"mensaje": "Mundo reiniciado correctamente con 10 habitantes"}
 
 @app.get("/")
 async def root():

@@ -81,6 +81,13 @@
         <button onclick="exportarDatos()">Descargar Datos JSON</button>
     </div>
 
+    <div class="card">
+        <h2>Delitos y Decisiones Negativas</h2>
+        <div id="delitos-container">
+            Cargando delitos...
+        </div>
+    </div>
+
     <div class="grid">
         <div class="card">
             <h2>Muertes por Causa</h2>
@@ -97,10 +104,10 @@
 
         async function updateData() {
             try {
-                const response = await fetch('/analisis');
+                const response = await fetch('/api/analisis');
                 const data = await response.json();
 
-                const statsResponse = await fetch('/estadisticas');
+                const statsResponse = await fetch('/api/estadisticas');
                 const stats = await statsResponse.json();
 
                 if (data.length === 0) return;
@@ -248,12 +255,33 @@
                 populationChart.update();
             }
 
+            // Nuevo: Gráfico de decisiones por tipo
+            if (!decisionsChart) {
+                const ctx4 = document.getElementById('decisionsChart').getContext('2d');
+                decisionsChart = new Chart(ctx4, {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(stats.decisiones_por_tipo),
+                        datasets: [{
+                            data: Object.values(stats.decisiones_por_tipo),
+                            backgroundColor: ['#ff6384', '#36a2eb', '#cc65fe', '#ffce56', '#4bc0c0']
+                        }]
+                    },
+                    options: { responsive: true }
+                });
+            } else {
+                decisionsChart.data.labels = Object.keys(stats.decisiones_por_tipo);
+                decisionsChart.data.datasets[0].data = Object.values(stats.decisiones_por_tipo);
+                decisionsChart.update();
+            }
+        }
+
         setInterval(updateData, 2000); // Update every 2s
         updateData();
 
         async function exportarDatos() {
             try {
-                const response = await fetch('/exportar_datos');
+                const response = await fetch('/api/exportar_datos');
                 const data = await response.json();
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
