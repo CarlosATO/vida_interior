@@ -87,17 +87,35 @@ scene.add(propsGroup);
 
 // Cache de Modelos 
 const models = {};
-const loadModel = (name, path) => {
-    loader.load(path, (gltf) => {
-        gltf.scene.traverse(c => { if (c.isMesh) c.castShadow = true; });
-        models[name] = gltf.scene;
+const loadModel = (name, path, scale = 1.0) => {
+    const ext = path.split('.').pop().toLowerCase();
+    const loader = (ext === 'fbx') ? fbxLoader : gltfLoader;
+
+    loader.load(path, (obj) => {
+        // GLTF returns { scene: ... }, FBX returns Group directly
+        const model = (ext === 'glb' || ext === 'gltf') ? obj.scene : obj;
+
+        model.traverse(c => {
+            if (c.isMesh) {
+                c.castShadow = true;
+                c.receiveShadow = true;
+            }
+        });
+
+        model.scale.set(scale, scale, scale);
+
+        // Fix FBX rotation if needed (often needed)
+        // if(ext === 'fbx') model.rotation.y = Math.PI;
+
+        models[name] = model;
         console.log(`Loaded ${name}`);
-    }, undefined, (err) => console.log(`Failed to load ${name}, using fallback.`));
+    }, undefined, (err) => console.log(`Failed to load ${name} (${path}):`, err));
 };
 
-// Intentar cargar modelos (Si existen)
+// Intentar cargar modelos
 loadModel('tree', '/assets/models/tree.glb');
-loadModel('human', '/assets/models/human.glb');
+loadModel('rock', '/assets/models/rock.glb');
+loadModel('human', '/assets/models/human.fbx', 0.01); // FBX usually needs scale down
 loadModel('rock', '/assets/models/rock.glb');
 
 // Modelos Interp
