@@ -115,7 +115,7 @@ const loadModel = (name, path, scale = 1.0) => {
 // Intentar cargar modelos
 loadModel('tree', '/assets/models/tree.glb');
 loadModel('rock', '/assets/models/rock.glb');
-loadModel('human', '/assets/models/human.fbx', 0.01); // FBX usually needs scale down
+loadModel('human', '/assets/models/human.fbx', 0.015); // Adjust scale for FBX (Kenney chars roughly ~1-2m but units vary)
 loadModel('house', '/assets/models/house.glb');
 
 // Modelos Interp
@@ -260,7 +260,7 @@ function generateTerrain(data) {
             const seed = (c * 13 + f * 37) % 100;
 
             if (tile.tipo === 'pasto' && seed < 15) {
-                // Árbol
+                // Árbol con variación
                 createTree(c * TILE_SIZE, h + 0.5, f * TILE_SIZE);
             } else if (tile.tipo === 'piedra' && seed < 20) {
                 // Roca
@@ -285,7 +285,15 @@ function generateTerrain(data) {
 function createTree(x, y, z) {
     if (models['tree']) {
         const clone = models['tree'].clone();
-        clone.position.set(x, y, z);
+        // Randomize placement slightly
+        const offsetX = (Math.random() - 0.5) * 0.5;
+        const offsetZ = (Math.random() - 0.5) * 0.5;
+        const scale = 0.8 + Math.random() * 0.4;
+
+        clone.position.set(x + offsetX, y, z + offsetZ);
+        clone.rotation.y = Math.random() * Math.PI * 2;
+        clone.scale.set(scale, scale, scale);
+
         propsGroup.add(clone);
         return;
     }
@@ -309,6 +317,9 @@ function createTree(x, y, z) {
 function createRock(x, y, z) {
     if (models['rock']) {
         const clone = models['rock'].clone();
+        // Force scale down in case it's huge
+        clone.scale.set(0.3, 0.3, 0.3);
+        clone.rotation.y = Math.random() * Math.PI;
         clone.position.set(x, y, z);
         propsGroup.add(clone);
         return;
