@@ -115,7 +115,8 @@ const loadModel = (name, path, scale = 1.0) => {
 // Intentar cargar modelos
 loadModel('tree', '/assets/models/tree.glb');
 loadModel('rock', '/assets/models/rock.glb');
-loadModel('human', '/assets/models/human.fbx', 0.015); // Adjust scale for FBX (Kenney chars roughly ~1-2m but units vary)
+loadModel('human', '/assets/models/human.fbx', 0.05); // Increased scale from 0.015
+loadModel('house', '/assets/models/house.glb');
 // Animales (Scales adjusted for Ultimate Animated Animals)
 loadModel('cow', '/assets/models/cow.gltf', 0.5);
 loadModel('deer', '/assets/models/deer.gltf', 0.5);
