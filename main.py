@@ -274,7 +274,7 @@ async def bucle_simulacion():
                     h._last_habitantes = habitantes # Guardar para lógica de proximidad
                     
                     # --- GESTIÓN DE ACCIÓN PARA FRONTEND ---
-                    if h.path:
+                    if h.camino:
                         h.accion_actual = "CAMINAR"
                     elif el_mundo.tiempo > 0.8 and h.necesidades["energia"] < 40:
                         h.accion_actual = "DORMIR"
