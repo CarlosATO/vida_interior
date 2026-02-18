@@ -376,7 +376,7 @@ function createAnimal(x, y, z, type, data) {
     let modelName = type.toLowerCase();
 
     // Map old types if necessary (though we updated backend)
-    if (modelName === 'gallina') modelName = 'chicken'; // We don't have chicken yet, will fallback
+    if (modelName === 'gallina') modelName = 'cow'; // Fallback to Cow
     if (modelName === 'cabra') modelName = 'deer'; // Use deer for goat
 
     if (models[modelName]) {
