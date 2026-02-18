@@ -1,3 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
 .DS_Store
 historia_mundo.json
 estado_mundo.json
