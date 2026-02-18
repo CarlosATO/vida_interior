@@ -116,7 +116,6 @@ const loadModel = (name, path, scale = 1.0) => {
 loadModel('tree', '/assets/models/tree.glb');
 loadModel('rock', '/assets/models/rock.glb');
 loadModel('human', '/assets/models/human.fbx', 0.01); // FBX usually needs scale down
-loadModel('rock', '/assets/models/rock.glb');
 
 // Modelos Interp
 const entities = new Map(); // Mapa de instancias de Entidad3D
