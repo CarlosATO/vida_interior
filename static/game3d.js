@@ -126,14 +126,14 @@ const loadModel = (name, path, scale = 1.0) => {
 
 // Intentar cargar modelos
 loadModel('tree', '/assets/models/tree.glb', 1.0);
-loadModel('rock', '/assets/models/rock.glb', 0.2);
-loadModel('human', '/assets/models/human.fbx', 0.015); // Reverting to 0.015 pending BBox check
+loadModel('rock', '/assets/models/rock.glb', 5.0); // Raw height 0.05 -> x5 = 0.25 (still small, maybe 10?) -> let's try 10.0
+loadModel('human', '/assets/models/human.fbx', 0.15); // Raw height 5.65 -> x0.15 = ~0.85 (Good)
 loadModel('house', '/assets/models/house.glb', 1.0);
-// Animales (Scales adjusted for Ultimate Animated Animals)
-loadModel('cow', '/assets/models/cow.gltf', 0.1);
-loadModel('deer', '/assets/models/deer.gltf', 0.1);
-loadModel('fox', '/assets/models/fox.gltf', 0.1);
-loadModel('wolf', '/assets/models/wolf.gltf', 0.1);
+// Animales (Raw height ~0.4 -> x1.5 = ~0.6)
+loadModel('cow', '/assets/models/cow.gltf', 1.5);
+loadModel('deer', '/assets/models/deer.gltf', 1.5);
+loadModel('fox', '/assets/models/fox.gltf', 1.5);
+loadModel('wolf', '/assets/models/wolf.gltf', 1.5);
 
 // Modelos Interp
 const entities = new Map(); // Mapa de instancias de Entidad3D
@@ -355,8 +355,7 @@ function createTree(x, y, z) {
 function createRock(x, y, z) {
     if (models['rock']) {
         const clone = models['rock'].clone();
-        // Force scale down significantly (User reported giant ball)
-        clone.scale.set(0.01, 0.01, 0.01);
+        // Scale applied in loadModel, but ensuring random rotation
         clone.rotation.y = Math.random() * Math.PI;
         clone.position.set(x, y, z);
         propsGroup.add(clone);
