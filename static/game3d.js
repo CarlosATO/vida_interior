@@ -95,8 +95,9 @@ const loadModel = (name, path) => {
 };
 
 // Intentar cargar modelos (Si existen)
-// loadModel('tree', '/assets/models/tree.glb');
-// loadModel('human', '/assets/models/human.glb');
+loadModel('tree', '/assets/models/tree.glb');
+loadModel('human', '/assets/models/human.glb');
+loadModel('rock', '/assets/models/rock.glb');
 
 // Modelos Interp
 const entities = new Map(); // Mapa de instancias de Entidad3D
@@ -279,6 +280,13 @@ function createTree(x, y, z) {
 }
 
 function createRock(x, y, z) {
+    if (models['rock']) {
+        const clone = models['rock'].clone();
+        clone.position.set(x, y, z);
+        propsGroup.add(clone);
+        return;
+    }
+
     const geo = new THREE.DodecahedronGeometry(0.3, 0);
     const mat = new THREE.MeshStandardMaterial({ color: 0x777777 });
     const rock = new THREE.Mesh(geo, mat);
