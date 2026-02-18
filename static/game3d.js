@@ -20,6 +20,40 @@ controls.maxPolarAngle = Math.PI / 2 - 0.1; // No bajar del suelo
 controls.minDistance = 5;
 controls.maxDistance = 50;
 
+// Raycaster
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let followTargetName = null;
+
+window.addEventListener('pointerdown', (event) => {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const intersects = raycaster.intersectObjects(entitiesGroup.children, true); // Recursive for groups
+
+    if (intersects.length > 0) {
+        // Find the root entity group/mesh
+        let obj = intersects[0].object;
+        while (obj.parent && obj.parent !== entitiesGroup) {
+            obj = obj.parent;
+        }
+
+        // Find which logical entity this is
+        for (const [name, ent] of entities) {
+            if (ent.mesh === obj) {
+                followTargetName = name;
+                console.log("Following:", name);
+                break;
+            }
+        }
+    } else {
+        // Click on terrain -> stop following (optional, or maybe move there?)
+        followTargetName = null;
+    }
+});
+
 // --- ILUMINACIÓN ---
 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
 scene.add(hemiLight);
@@ -306,6 +340,22 @@ function update() {
 
     // Interpolate
     entities.forEach(ent => ent.lerp());
+
+    // Follow Camera
+    if (followTargetName && entities.has(followTargetName)) {
+        const ent = entities.get(followTargetName);
+        if (ent.mesh) {
+            const targetPos = ent.mesh.position;
+
+            // Move camera to keep relative offset? Or just lookAt?
+            // "RTS style follow": Update controls.target
+            const offset = new THREE.Vector3().subVectors(camera.position, controls.target);
+            controls.target.copy(targetPos);
+            camera.position.addVectors(targetPos, offset);
+        }
+    } else {
+        followTargetName = null;
+    }
 
     renderer.render(scene, camera);
 }
