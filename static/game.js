@@ -449,8 +449,64 @@ fetch('/mapa')
     .then(data => {
         mapa = data;
         mapDataCache = data;
+
+        // Auto-focus camera
+        centerCameraOnEntity();
+
         loop(0);
     });
+
+function centerCameraOnEntity() {
+    // 1. Try to find the "centro" building
+    let targetX = 0;
+    let targetY = 0;
+    let found = false;
+
+    // Search in buildings
+    if (mapa && mapa.edificios) {
+        for (const ed of mapa.edificios) {
+            if (ed.tipo === 'centro') {
+                targetX = ed.c;
+                targetY = ed.f;
+                found = true;
+                break;
+            }
+        }
+    }
+
+    // 2. If no center, try first inhabitant (if state is loaded, but map loads first usually)
+    // Since map loads before state loop, we might need to rely on map.edificios or wait for first state update.
+    // Ensure we have a valid target from map first.
+
+    if (found) {
+        const iso = gridToIso(targetX, targetY);
+        // Center screen: Width/2, Height/2
+        // iso.x = (c-f)*W/2 + OFFX
+        // iso.y = (c+f)*H/2 + OFFY
+        // We want iso.x, iso.y to be somewhere specific? No, we want the drawing to end up at center.
+        // render x = iso.x
+        // render y = iso.y
+
+        // We want iso.x = CanvasWidth / 2
+        // We want iso.y = CanvasHeight / 2
+
+        // current_iso_x = val + OFFX
+        // target_iso_x = val + NEW_OFFX = CW/2
+        // NEW_OFFX = CW/2 - val
+
+        // Calculate "val" (isometric position without offset)
+        const zoomTW = TILE_WIDTH * ZOOM_LEVEL;
+        const zoomTH = TILE_HEIGHT * ZOOM_LEVEL;
+
+        const valX = (targetX - targetY) * (zoomTW / 2);
+        const valY = (targetX + targetY) * (zoomTH / 2);
+
+        OFFSET_X = (canvas.width / 2) - valX;
+        OFFSET_Y = (canvas.height / 2) - valY;
+
+        console.log(`Camera centered on ${targetX}, ${targetY}`);
+    }
+}
 // --- BITÁCORA LOGIC ---
 let showingBitacora = false;
 let lastBitacoraFetch = 0;

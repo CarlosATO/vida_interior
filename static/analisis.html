@@ -7,144 +7,300 @@
     <title>Analítica de Vida Interior</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #cbd5e1;
+            --highlight: #38bdf8;
+            --accent: #818cf8;
+            --border: #334155;
+            --success: #34d399;
+            --danger: #f87171;
+            --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
         body {
-            font-family: monospace;
-            background: #111;
-            color: #eee;
+            font-family: var(--font-family);
+            background: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
             padding: 20px;
+        }
+
+        header {
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            color: var(--highlight);
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        h2 {
+            color: var(--text-color);
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-weight: 500;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 10px;
         }
 
         .card {
-            background: #222;
+            background: var(--card-bg);
             padding: 20px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-        }
-
-        h1,
-        h2 {
-            color: #4af;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid var(--border);
         }
 
         .grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
             gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-item {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--highlight);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        #log-container {
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            color: #a5b4fc;
+        }
+
+        /* Custom scrollbar */
+        #log-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #log-container::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        #log-container::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+        }
+
+        .log-time {
+            color: #64748b;
+            margin-right: 8px;
+        }
+
+        .log-name {
+            color: var(--highlight);
+            font-weight: bold;
+        }
+
+        .log-reason {
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #6366f1;
+        }
+
+        .status-dot {
+            height: 10px;
+            width: 10px;
+            background-color: var(--success);
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
         }
     </style>
 </head>
 
 <body>
-    <h1>🔬 Laboratorio de Datos de Comportamiento</h1>
+    <header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>🔬 Analytics Lab</h1>
+                <div style="font-size: 0.9rem; color: #94a3b8; margin-top: 5px;">
+                    <span class="status-dot"></span> Live Simulation Data
+                </div>
+            </div>
+            <button onclick="updateData()">Refresh Data</button>
+        </div>
+    </header>
 
-    <div class="card">
-        <h2>Últimas Decisiones (Tiempo Real)</h2>
-        <div id="log-container"
-            style="height: 200px; overflow-y: scroll; font-size: 12px; border: 1px solid #444; padding: 10px;">
-            Cargando datos...
+    <!-- KPI Summary -->
+    <div class="card" style="margin-bottom: 20px;">
+        <h2>Global Metrics</h2>
+        <div class="stats-grid" id="stats-container">
+            Loading metrics...
         </div>
     </div>
 
+    <!-- Live Log -->
+    <div class="card" style="margin-bottom: 20px;">
+        <h2>Live Decision Log</h2>
+        <div id="log-container">
+            Loading logs...
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
     <div class="grid">
         <div class="card">
-            <h2>Evolución de Necesidades (Promedio)</h2>
-            <canvas id="needsChart"></canvas>
+            <h2>Average Needs (Last 100 ticks)</h2>
+            <div style="position: relative; height: 300px;">
+                <canvas id="needsChart"></canvas>
+            </div>
         </div>
         <div class="card">
-            <h2>Distribución de Acciones</h2>
-            <canvas id="actionsChart"></canvas>
-        </div>
-    </div>
-
-    <div class="card">
-        <h2>Estadísticas Agregadas</h2>
-        <div id="stats-container">
-            Cargando estadísticas...
-        </div>
-    </div>
-
-    <div class="grid">
-        <div class="card">
-            <h2>Evolución Poblacional</h2>
-            <canvas id="populationChart"></canvas>
-        </div>
-        <div class="card">
-            <h2>Agrupaciones por Nodos</h2>
-            <div id="groups-container">
-                Cargando agrupaciones...
+            <h2>Action Distribution</h2>
+            <div style="position: relative; height: 300px;">
+                <canvas id="actionsChart"></canvas>
             </div>
         </div>
     </div>
 
-    <div class="card">
-        <h2>Exportar Datos para Análisis Offline</h2>
-        <button onclick="exportarDatos()">Descargar Datos JSON</button>
-    </div>
-
-    <div class="card">
-        <h2>Delitos y Decisiones Negativas</h2>
-        <div id="delitos-container">
-            Cargando delitos...
+    <!-- Charts Row 2 -->
+    <div class="grid">
+        <div class="card">
+            <h2>Population Growth</h2>
+            <div style="position: relative; height: 250px;">
+                <canvas id="populationChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Cause of Death</h2>
+            <div style="position: relative; height: 250px;">
+                <canvas id="deathsChart"></canvas>
+            </div>
         </div>
     </div>
 
     <div class="grid">
         <div class="card">
-            <h2>Muertes por Causa</h2>
-            <canvas id="deathsChart"></canvas>
+            <h2>Social Clusters</h2>
+            <div id="groups-container" style="color: #94a3b8; font-size: 0.9rem;"></div>
         </div>
         <div class="card">
-            <h2>Decisiones por Tipo</h2>
-            <canvas id="decisionsChart"></canvas>
+            <h2>Anomalies & Delinquency</h2>
+            <div id="delitos-container" style="color: var(--danger); font-size: 0.9rem;"></div>
         </div>
     </div>
 
+    <div class="card">
+        <h2>Export Data</h2>
+        <p style="color: #94a3b8; margin-bottom: 15px;">Download raw JSON data for offline Python/Jupyter analysis.</p>
+        <button onclick="exportarDatos()">Download Dataset (.json)</button>
+    </div>
+
     <script>
-        let needsChart, actionsChart, deathsChart, decisionsChart, populationChart;
+        // Theme config
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = '#334155';
+
+        let needsChart, actionsChart, deathsChart, populationChart;
 
         async function updateData() {
             try {
                 const response = await fetch('/api/analisis');
                 const data = await response.json();
-
                 const statsResponse = await fetch('/api/estadisticas');
                 const stats = await statsResponse.json();
 
                 if (data.length === 0) return;
 
-                // 1. Llenar Log
+                // 1. Logs
                 const logDiv = document.getElementById('log-container');
-                const ultimos = data.slice(-20).reverse();
+                const ultimos = data.slice(-50).reverse();
                 logDiv.innerHTML = ultimos.map(r =>
-                    `[T${r.t.toFixed(1)}] <b>${r.nombre}</b>: ${r.decision} (Razón: ${r.razon}) - Sed: ${r.sed}`
-                ).join('<br>');
+                    `<div class="log-entry">
+                        <span class="log-time">[T${r.t.toFixed(1)}]</span>
+                        <span class="log-name">${r.nombre}</span>: 
+                        ${r.decision} 
+                        <span class="log-reason">(${r.razon})</span>
+                     </div>`
+                ).join('');
 
-                // 2. Estadísticas Agregadas
+                // 2. Metrics
                 const statsDiv = document.getElementById('stats-container');
                 statsDiv.innerHTML = `
-                    <p>Habitantes Vivos: ${stats.habitantes_vivos}</p>
-                    <p>Total Decisiones: ${stats.total_decisiones}</p>
-                    <p>Tiempo Actual: ${stats.tiempo_actual.toFixed(1)}</p>
-                    <p>Necesidades Promedio: Hambre ${stats.necesidades_promedio.hambre.toFixed(1)}, Sed ${stats.necesidades_promedio.sed.toFixed(1)}, Energía ${stats.necesidades_promedio.energia.toFixed(1)}, Social ${stats.necesidades_promedio.social.toFixed(1)}</p>
+                    <div class="stat-item">
+                        <div class="stat-value">${stats.habitantes_vivos}</div>
+                        <div class="stat-label">Alive</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${stats.total_decisiones}</div>
+                        <div class="stat-label">Decisions</div>
+                    </div>
+                     <div class="stat-item">
+                        <div class="stat-value">${stats.tiempo_actual.toFixed(1)}</div>
+                        <div class="stat-label">Sim Time</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" style="color: ${stats.necesidades_promedio.hambre > 50 ? '#f87171' : '#34d399'}">
+                            ${stats.necesidades_promedio.hambre.toFixed(1)}%
+                        </div>
+                        <div class="stat-label">Avg Hunger</div>
+                    </div>
                 `;
 
-                // 3. Agrupaciones
+                // 3. Groups & Delitos
                 const groupsDiv = document.getElementById('groups-container');
-                if (stats.agrupaciones.length > 0) {
-                    groupsDiv.innerHTML = stats.agrupaciones.map(g => `<p>Grupo: ${g.join(', ')}</p>`).join('');
-                } else {
-                    groupsDiv.innerHTML = '<p>No hay agrupaciones detectadas.</p>';
-                }
+                groupsDiv.innerHTML = stats.agrupaciones.length > 0
+                    ? stats.agrupaciones.map(g => `<div>👥 ${g.join(', ')}</div>`).join('')
+                    : 'No clusters detected.';
 
-                // 4. Delitos
                 const delitosDiv = document.getElementById('delitos-container');
-                if (stats.delitos.length > 0) {
-                    delitosDiv.innerHTML = stats.delitos.map(d => `<p>${d.habitante}: ${d.delito} (T${d.tiempo})</p>`).join('');
-                } else {
-                    delitosDiv.innerHTML = '<p>No hay delitos registrados.</p>';
-                }
+                delitosDiv.innerHTML = stats.delitos.length > 0
+                    ? stats.delitos.map(d => `<div>⚠️ ${d.habitante}: ${d.delito}</div>`).join('')
+                    : 'No anomalies detected.';
 
-                // 5. Gráficos
+                // 4. Charts
                 processCharts(data, stats);
 
             } catch (e) {
@@ -153,7 +309,8 @@
         }
 
         function processCharts(data, stats) {
-            // Gráfico de necesidades (existente)
+            // Needs Chart
+            // Group by integer time to smooth graph
             const timeBuckets = {};
             data.forEach(r => {
                 const t = Math.floor(r.t);
@@ -165,9 +322,9 @@
                 timeBuckets[t].social += r.social;
             });
 
-            const labels = Object.keys(timeBuckets).sort((a, b) => a - b);
-            const hambreData = labels.map(t => timeBuckets[t].hambre / timeBuckets[t].count);
-            const sedData = labels.map(t => timeBuckets[t].sed / timeBuckets[t].count);
+            // Limit to last N points
+            let labels = Object.keys(timeBuckets).sort((a, b) => a - b).slice(-50);
+            const getData = (key) => labels.map(t => timeBuckets[t][key] / timeBuckets[t].count);
 
             if (!needsChart) {
                 const ctx = document.getElementById('needsChart').getContext('2d');
@@ -176,24 +333,29 @@
                     data: {
                         labels: labels,
                         datasets: [
-                            { label: 'Hambre', data: hambreData, borderColor: 'orange' },
-                            { label: 'Sed', data: sedData, borderColor: 'cyan' }
+                            { label: 'Hunger', data: getData('hambre'), borderColor: '#f87171', tension: 0.4 },
+                            { label: 'Thirst', data: getData('sed'), borderColor: '#38bdf8', tension: 0.4 },
+                            { label: 'Energy', data: getData('energia'), borderColor: '#fbbf24', tension: 0.4 }
                         ]
                     },
-                    options: { responsive: true, animation: false }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        scales: { y: { min: 0, max: 100 } }
+                    }
                 });
             } else {
                 needsChart.data.labels = labels;
-                needsChart.data.datasets[0].data = hambreData;
-                needsChart.data.datasets[1].data = sedData;
+                needsChart.data.datasets[0].data = getData('hambre');
+                needsChart.data.datasets[1].data = getData('sed');
+                needsChart.data.datasets[2].data = getData('energia');
                 needsChart.update('none');
             }
 
-            // Pie Chart de acciones (existente)
+            // Actions Pie
             const acciones = {};
-            data.forEach(r => {
-                acciones[r.decision] = (acciones[r.decision] || 0) + 1;
-            });
+            data.forEach(r => acciones[r.decision] = (acciones[r.decision] || 0) + 1);
 
             if (!actionsChart) {
                 const ctx2 = document.getElementById('actionsChart').getContext('2d');
@@ -203,9 +365,11 @@
                         labels: Object.keys(acciones),
                         datasets: [{
                             data: Object.values(acciones),
-                            backgroundColor: ['#f88', '#8f8', '#88f', '#ff8', '#8ff', '#f8f']
+                            backgroundColor: ['#38bdf8', '#818cf8', '#34d399', '#f87171', '#fbbf24', '#c084fc'],
+                            borderWidth: 0
                         }]
-                    }
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
                 });
             } else {
                 actionsChart.data.labels = Object.keys(acciones);
@@ -213,28 +377,7 @@
                 actionsChart.update();
             }
 
-            // Nuevo: Gráfico de muertes
-            if (!deathsChart) {
-                const ctx3 = document.getElementById('deathsChart').getContext('2d');
-                deathsChart = new Chart(ctx3, {
-                    type: 'bar',
-                    data: {
-                        labels: Object.keys(stats.muertes_por_causa),
-                        datasets: [{
-                            label: 'Muertes',
-                            data: Object.values(stats.muertes_por_causa),
-                            backgroundColor: ['red', 'blue']
-                        }]
-                    },
-                    options: { responsive: true }
-                });
-            } else {
-                deathsChart.data.labels = Object.keys(stats.muertes_por_causa);
-                deathsChart.data.datasets[0].data = Object.values(stats.muertes_por_causa);
-                deathsChart.update();
-            }
-
-            // Nuevo: Gráfico de población
+            // Population Line
             if (!populationChart) {
                 const ctx5 = document.getElementById('populationChart').getContext('2d');
                 populationChart = new Chart(ctx5, {
@@ -242,12 +385,15 @@
                     data: {
                         labels: stats.evolucion_poblacion.map(p => p[0]),
                         datasets: [{
-                            label: 'Población',
+                            label: 'Population',
                             data: stats.evolucion_poblacion.map(p => p[1]),
-                            borderColor: 'green'
+                            borderColor: '#34d399',
+                            backgroundColor: 'rgba(52, 211, 153, 0.1)',
+                            fill: true,
+                            tension: 0.3
                         }]
                     },
-                    options: { responsive: true }
+                    options: { responsive: true, maintainAspectRatio: false }
                 });
             } else {
                 populationChart.data.labels = stats.evolucion_poblacion.map(p => p[0]);
@@ -255,28 +401,30 @@
                 populationChart.update();
             }
 
-            // Nuevo: Gráfico de decisiones por tipo
-            if (!decisionsChart) {
-                const ctx4 = document.getElementById('decisionsChart').getContext('2d');
-                decisionsChart = new Chart(ctx4, {
-                    type: 'pie',
+            // Deaths Bar
+            if (!deathsChart) {
+                const ctx3 = document.getElementById('deathsChart').getContext('2d');
+                deathsChart = new Chart(ctx3, {
+                    type: 'bar',
                     data: {
-                        labels: Object.keys(stats.decisiones_por_tipo),
+                        labels: Object.keys(stats.muertes_por_causa),
                         datasets: [{
-                            data: Object.values(stats.decisiones_por_tipo),
-                            backgroundColor: ['#ff6384', '#36a2eb', '#cc65fe', '#ffce56', '#4bc0c0']
+                            label: 'Deaths',
+                            data: Object.values(stats.muertes_por_causa),
+                            backgroundColor: '#f87171',
+                            borderRadius: 4
                         }]
                     },
-                    options: { responsive: true }
+                    options: { responsive: true, maintainAspectRatio: false }
                 });
             } else {
-                decisionsChart.data.labels = Object.keys(stats.decisiones_por_tipo);
-                decisionsChart.data.datasets[0].data = Object.values(stats.decisiones_por_tipo);
-                decisionsChart.update();
+                deathsChart.data.labels = Object.keys(stats.muertes_por_causa);
+                deathsChart.data.datasets[0].data = Object.values(stats.muertes_por_causa);
+                deathsChart.update();
             }
         }
 
-        setInterval(updateData, 2000); // Update every 2s
+        setInterval(updateData, 2000);
         updateData();
 
         async function exportarDatos() {
@@ -291,7 +439,7 @@
                 a.click();
                 URL.revokeObjectURL(url);
             } catch (e) {
-                console.error("Error exportando datos", e);
+                console.error("Error exporting data", e);
             }
         }
     </script>

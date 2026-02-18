@@ -4,11 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 import asyncio
+import traceback
 import os
 import random
 from mundo import Mundo
 from habitante import Habitante
 from config import *
+import config
 
 # App se define abajo con lifespan
 @asynccontextmanager
@@ -40,25 +42,99 @@ app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 # Variable Global del Mundo
 el_mundo = None
 habitantes = []
+cementerio = []
 poblacion_historia = []  # Lista de (tiempo, poblacion)
 
 # Banco de nombres para bebés
-NOMBRES_MASCULINOS = ["Leo", "Liam", "Noah", "Oliver", "Elias", "Theo", "Max", "Felix", "Oscar", "Hugo", 
+NOMBRES_MASCULINOS = ["Carlos", "Liam", "Noah", "Oliver", "Elias", "Theo", "Max", "Felix", "Oscar", "Hugo", 
                       "Gabriel", "Rafael", "Daniel", "Samuel", "David", "Miguel", "Adrian", "Bruno", "Aaron"]
-NOMBRES_FEMENINOS = ["Valentina", "Camila", "Lucia", "Martina", "Victoria", "Emma", "Olivia", "Ava", "Zoe",
+NOMBRES_FEMENINOS = ["Emilia", "Camila", "Lucia", "Martina", "Victoria", "Emma", "Olivia", "Ava", "Zoe",
                      "Helena", "Julia", "Catalina", "Natalia", "Andrea", "Sara", "Elena", "Paula", "Laura"]
 nombres_usados = set()
 
-def inicializar_mundo():
-    global el_mundo, habitantes, poblacion_historia, nombres_usados
+import json
+
+STATE_FILE = "estado_mundo.json"
+
+def guardar_estado():
+    global el_mundo, habitantes, cementerio, poblacion_historia, nombres_usados
+    if not el_mundo: return
+    
+    estado = {
+        "mundo": el_mundo.to_dict(),
+        "habitantes": [h.to_dict() for h in habitantes],
+        "cementerio": [h.to_dict() for h in cementerio],
+        "poblacion_historia": poblacion_historia,
+        "nombres_usados": list(nombres_usados)
+    }
+    
+    try:
+        with open(STATE_FILE, "w") as f:
+            json.dump(estado, f)
+        print(f"💾 Estado guardado en {STATE_FILE}")
+    except Exception as e:
+        print(f"❌ Error al guardar estado: {e}")
+
+def cargar_estado():
+    global el_mundo, habitantes, cementerio, poblacion_historia, nombres_usados
+    if not os.path.exists(STATE_FILE):
+        return False
+    
+    try:
+        with open(STATE_FILE, "r") as f:
+            data = json.load(f)
+            
+        el_mundo = Mundo.from_dict(data["mundo"])
+        poblacion_historia = data.get("poblacion_historia", [])
+        nombres_usados = set(data.get("nombres_usados", []))
+        
+        # Cargar habitantes (vivos y muertos)
+        habitantes = [Habitante.from_dict(h) for h in data["habitantes"]]
+        cementerio = [Habitante.from_dict(h) for h in data["cementerio"]]
+        
+        # Re-vincular relaciones
+        todos = habitantes + cementerio
+        mapping = {h.nombre: h for h in todos}
+        
+        for h in todos:
+            temp = getattr(h, "_temp_data", {})
+            # Pareja
+            pareja_nom = temp.get("pareja_nombre")
+            if pareja_nom: h.pareja = mapping.get(pareja_nom)
+            # Padres
+            padre_nom = temp.get("padre_nombre")
+            if padre_nom: h.padre = mapping.get(padre_nom)
+            madre_nom = temp.get("madre_nombre")
+            if madre_nom: h.madre = mapping.get(madre_nom)
+            # Hijos
+            hijos_noms = temp.get("hijos_nombres", [])
+            h.hijos = [mapping[n] for n in hijos_noms if n in mapping]
+            
+            # Limpiar basura temporal
+            if hasattr(h, "_temp_data"): del h._temp_data
+            
+        print(f"📂 Estado cargado exitosamente desde {STATE_FILE}")
+        return True
+    except Exception as e:
+        print(f"❌ Error al cargar estado: {e}")
+        return False
+
+def inicializar_mundo(forzar_nuevo=False):
+    global el_mundo, habitantes, cementerio, poblacion_historia, nombres_usados
+    
+    # Intentar cargar estado previo
+    if not forzar_nuevo and cargar_estado():
+        return
+
     el_mundo = Mundo()
     habitantes = []
+    cementerio = []
     poblacion_historia = []
     nombres_usados = set()  # Resetear nombres usados
     
     # --- SPAWN HABITANTES ---
     # Usar la ubicación del Centro Urbano determinada por el generador de Mundo
-    base_x, base_y = COLUMNAS // 2, FILAS // 2 # Default fallback
+    base_x, base_y = config.COLUMNAS // 2, config.FILAS // 2 # Default fallback
     
     # Buscar el edificio centro
     for pos, tipo in el_mundo.edificios.items():
@@ -164,6 +240,7 @@ inicializar_mundo()
 
 # --- BUCLE DE SIMULACIÓN ---
 async def bucle_simulacion():
+    global el_mundo, habitantes, cementerio, poblacion_historia, nombres_usados
     print("🚀 Iniciando simulación en background...")
     while True:
         try:
@@ -171,6 +248,10 @@ async def bucle_simulacion():
             if el_mundo:
                 nuevo_dia = el_mundo.actualizar_tiempo()
                 el_mundo.actualizar_naturaleza()
+                
+                # Autoguardado cada nuevo día
+                if nuevo_dia:
+                    guardar_estado()
                 
                 # Registrar población histórica
                 if len(poblacion_historia) == 0 or el_mundo.tiempo - poblacion_historia[-1][0] >= 0.01:
@@ -184,19 +265,38 @@ async def bucle_simulacion():
                     
                 # 3. HABITANTES
                 nuevos_habitantes = []
-                for h in habitantes:
+                for h in habitantes[:]: # Iterar sobre copia
                     h.ejecutar_ordenes(el_mundo, habitantes)
+                    
+                    # LOG DE MOVIMIENTO (DEBUG)
+                    # if h.moviendose or h.accion_actual == "EXPLORAR":
+                    #    print(f"[DEBUG] {h.nombre}: Act={h.accion_actual}, Pos=({h.col:.2f}, {h.fila:.2f}), Dest={h.camino[0] if h.camino else 'None'}")
                     
                     # --- SALUD Y MUERTE ---
                     if h.necesidades["hambre"] >= 100:
                         el_mundo.registrar_evento(f"💀 {h.nombre} murió de hambre.", "muerte")
+                        cementerio.append(h)
                         habitantes.remove(h)
                         continue
                     
                     if h.necesidades["sed"] >= 100:
                         el_mundo.registrar_evento(f"💀 {h.nombre} murió de sed.", "muerte")
+                        cementerio.append(h)
                         habitantes.remove(h)
                         continue
+
+                    # --- MUERTE POR VEJEZ ---
+                    # Edad en ticks / Ticks por año
+                    edad_anios = h.edad / config.TICKS_POR_ANIO
+                    if edad_anios > config.ESPERANZA_VIDA_ANIOS:
+                        # Probabilidad de muerte aumenta con la edad excedida
+                        # Chequeo diario (aprox) para no matar a todos en el mismo tick
+                        if random.random() < 0.01: 
+                            el_mundo.registrar_evento(f"💀 {h.nombre} murió de vejez a los {int(edad_anios)} años.", "muerte")
+                            cementerio.append(h)
+                            habitantes.remove(h)
+                            continue
+
                         
                     # --- NACIMIENTOS ---
                     if h.accion_actual == "CORAZÓN":
@@ -269,7 +369,13 @@ async def bucle_simulacion():
             
         except Exception as e:
             print(f"Error en loop sims: {e}")
+            traceback.print_exc()
             await asyncio.sleep(1)
+
+@app.post("/api/guardar")
+async def api_guardar():
+    guardar_estado()
+    return {"mensaje": "Estado guardado manualmente"}
 
 
 
@@ -312,8 +418,8 @@ async def get_estado():
     # Recursos dinámicos si cambian mucho... Por ahora el frontend asume el mapa estático + recursos
     # Mandamos lista de recursos actuales para dibujar
     data_recursos = []
-    for f in range(FILAS):
-        for c in range(COLUMNAS):
+    for f in range(config.FILAS):
+        for c in range(config.COLUMNAS):
             tile = el_mundo.mapa_logico[f][c]
             if tile["recurso"]:
                 data_recursos.append({
@@ -347,14 +453,26 @@ async def analisis_dashboard():
 
 @app.get("/api/analisis")
 async def get_analisis():
-    # Consolidar datos de todos los habitantes vivos
+    # Consolidar datos de todos los habitantes vivos y muertos
     data = []
+    # Vivos
     for h in habitantes:
         # Añadir metadatos del habitante a cada registro
-        for record in h.historia_decisiones:
+        # OPTIMIZACIÓN: Solo enviar las últimas 200 decisiones para no saturar el frontend
+        for record in h.historia_decisiones[-200:]:
             r = record.copy()
             r["nombre"] = h.nombre
             r["genero"] = h.genero
+            r["estado"] = "vivo"
+            data.append(r)
+    # Muertos
+    for h in cementerio:
+        # OPTIMIZACIÓN: Solo enviar las últimas 200 decisiones
+        for record in h.historia_decisiones[-200:]:
+            r = record.copy()
+            r["nombre"] = h.nombre
+            r["genero"] = h.genero
+            r["estado"] = "muerto"
             data.append(r)
     return data
 
@@ -375,7 +493,8 @@ async def get_estadisticas():
             muertes_por_causa["sed"] += 1
     
     # Procesar decisiones
-    for h in habitantes:
+    todos = habitantes + cementerio
+    for h in todos:
         total_decisiones += len(h.historia_decisiones)
         for record in h.historia_decisiones:
             tipo = record["decision"]
@@ -430,10 +549,12 @@ async def get_estadisticas():
 async def exportar_datos():
     # Exportar todo el dataset para análisis offline
     data = []
-    for h in habitantes:
+    todos = habitantes + cementerio
+    for h in todos:
         for record in h.historia_decisiones:
             r = record.copy()
             r["habitante"] = h.nombre
+            r["estado"] = "vivo" if h in habitantes else "muerto"
             data.append(r)
     return {"data": data, "bitacora": el_mundo.bitacora, "poblacion_historia": poblacion_historia}
 
@@ -441,8 +562,8 @@ async def exportar_datos():
 async def get_mapa():
     # Endpoint pesado, se llama una vez al cargar
     return {
-        "filas": FILAS,
-        "columnas": COLUMNAS,
+        "filas": config.FILAS,
+        "columnas": config.COLUMNAS,
         "mapa": el_mundo.mapa_logico,
         "edificios": [{"c": k[0], "f": k[1], "tipo": v} for k,v in el_mundo.edificios.items()]
     }
@@ -450,7 +571,7 @@ async def get_mapa():
 @app.post("/reiniciar")
 async def reiniciar():
     print("🔁 Reiniciando mundo...")
-    inicializar_mundo()
+    inicializar_mundo(forzar_nuevo=True)
     return {"mensaje": "Mundo reiniciado correctamente con 10 habitantes"}
 
 @app.get("/")

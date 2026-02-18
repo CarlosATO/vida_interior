@@ -1,3 +1,5 @@
+import config
+
 def registrar_decision(self, cuerpo, decision, razon, tiempo):
     # Guardar snapshot para análisis
     snapshot = {
@@ -44,7 +46,7 @@ def buscar_agua_instinto(self, cuerpo, mundo):
                 if abs(dx) != r and abs(dy) != r: continue
                 
                 nx, ny = centro_x + dx, centro_y + dy
-                if 0 <= nx < 80 and 0 <= ny < 80: # Hardcoded limits from config, be careful
+                if 0 <= nx < config.COLUMNAS and 0 <= ny < config.FILAS: # Usar límites de config
                     if mundo.mapa_logico[ny][nx]["tipo"] == "agua":
                         return (nx, ny)
     return None

@@ -1,6 +1,7 @@
 import random
+from config import VELOCIDAD_BASE
 import math
-from config import *
+import config
 
 class Animal:
     def __init__(self, col, fila, tipo):
@@ -64,3 +65,26 @@ class Animal:
             self.fila = self.destino_fila
             self.accion_actual = "COMER" # Al llegar, pastar
 
+    def to_dict(self):
+        return {
+            "col": self.col,
+            "fila": self.fila,
+            "tipo": self.tipo,
+            "destino_col": self.destino_col,
+            "destino_fila": self.destino_fila,
+            "accion_actual": self.accion_actual,
+            "timer_accion": self.timer_accion,
+            "energia": self.energia,
+            "vivo": self.vivo
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        a = cls(data["col"], data["fila"], data["tipo"])
+        a.destino_col = data.get("destino_col", a.col)
+        a.destino_fila = data.get("destino_fila", a.fila)
+        a.accion_actual = data.get("accion_actual", "CAMINAR")
+        a.timer_accion = data.get("timer_accion", 0)
+        a.energia = data.get("energia", 100)
+        a.vivo = data.get("vivo", True)
+        return a

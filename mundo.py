@@ -2,7 +2,7 @@ import os
 import random
 import math
 import heapq
-from config import *
+import config
 from animal import Animal
 
 class Mundo:
@@ -43,7 +43,7 @@ class Mundo:
     def actualizar_tiempo(self):
         # Avanzar el tiempo
         # Incremento por frame = 1.0 / (Segundos * FPS)
-        incremento = 1.0 / (DURACION_DIA_SEGUNDOS * FPS)
+        incremento = 1.0 / (config.DURACION_DIA_SEGUNDOS * config.FPS)
         self.tiempo += incremento
         nuevo_dia = False
         if self.tiempo >= 1.0:
@@ -70,7 +70,7 @@ class Mundo:
         
         if self.tiempo < 0.2: # Amanecer
             progreso = self.tiempo / 0.2
-            alpha = int(MAX_OSCURIDAD * (1 - progreso))
+            alpha = int(config.MAX_OSCURIDAD * (1 - progreso))
             color = (20, 20, 40)
             
         elif self.tiempo < 0.7: # Día pleno
@@ -78,12 +78,12 @@ class Mundo:
             
         elif self.tiempo < 0.8: # Atardecer
             progreso = (self.tiempo - 0.7) / 0.1
-            alpha = int(MAX_OSCURIDAD * 0.6 * progreso)
+            alpha = int(config.MAX_OSCURIDAD * 0.6 * progreso)
             color = (255, 150, 50)
             
         else: # Noche
-            alpha = MAX_OSCURIDAD
-            color = COLOR_NOCHE
+            alpha = config.MAX_OSCURIDAD
+            color = config.COLOR_NOCHE
 
         self.color_ambiente = (color[0], color[1], color[2], alpha)
         return nuevo_dia
@@ -92,8 +92,8 @@ class Mundo:
         # Simulación ecológica estocástica
         import random
         for _ in range(20):
-            c = random.randint(0, COLUMNAS - 1)
-            f = random.randint(0, FILAS - 1)
+            c = random.randint(0, config.COLUMNAS - 1)
+            f = random.randint(0, config.FILAS - 1)
             
             tile = self.mapa_logico[f][c]
             
@@ -102,7 +102,7 @@ class Mundo:
                 if tile["tipo"] == "pasto":
                     # Probabilidad de brote espontáneo
                     rng = random.random()
-                    if rng < 0.005:  # 0.5% de probabilidad
+                    if rng < 0.008:  # 0.8% de probabilidad (Antes 0.5%)
                         # Qué crece?
                         opciones = ["arbol", "fruta", "vegetal", "animal"]
                         pesos = [0.4, 0.3, 0.2, 0.1]
@@ -127,17 +127,17 @@ class Mundo:
         seed2 = random.randint(0, 1000)
         seed3 = random.randint(0, 1000)
 
-        for fila in range(FILAS):
+        for fila in range(config.FILAS):
             fila_datos = []
-            for col in range(COLUMNAS):
+            for col in range(config.COLUMNAS):
                 # 1. Ruido Fractal Base
                 e1 = math.sin(col * 0.05 + seed1) + math.cos(fila * 0.05 + seed1)
                 e2 = 0.5 * (math.sin(col * 0.15 + seed2) + math.cos(fila * 0.15 + seed2))
                 ruido = e1 + e2 
                 
                 # 2. Máscara de Isla (Circular)
-                nx = 2 * col / COLUMNAS - 1
-                ny = 2 * fila / FILAS - 1
+                nx = 2 * col / config.COLUMNAS - 1
+                ny = 2 * fila / config.FILAS - 1
                 distancia_centro = math.sqrt(nx*nx + ny*ny)
                 
                 mascara = (1 - distancia_centro * 1.0) # Menos agresivo (era 1.2)
@@ -185,10 +185,10 @@ class Mundo:
             self.mapa_logico.append(fila_datos)
         
         # --- COLOCAR CENTRO URBANO ---
-        cx, cy = COLUMNAS // 2, FILAS // 2
+        cx, cy = config.COLUMNAS // 2, config.FILAS // 2
         for dy in range(-2, 3):
             for dx in range(-2, 3):
-                if 0 <= cx+dx < COLUMNAS and 0 <= cy+dy < FILAS:
+                if 0 <= cx+dx < config.COLUMNAS and 0 <= cy+dy < config.FILAS:
                     self.mapa_logico[cy+dy][cx+dx]["altura"] = 2
                     self.mapa_logico[cy+dy][cx+dx]["tipo"] = "pasto"
                     self.mapa_logico[cy+dy][cx+dx]["transitable"] = True
@@ -206,8 +206,8 @@ class Mundo:
         visitados = set()
         islas = [] # Lista de (tamaño, semilla_x, semilla_y, set_coordenadas)
         
-        for f in range(FILAS):
-            for c in range(COLUMNAS):
+        for f in range(config.FILAS):
+            for c in range(config.COLUMNAS):
                 if (c, f) not in visitados:
                     tile = self.mapa_logico[f][c]
                     if tile["transitable"] and tile["tipo"] != "agua":
@@ -222,7 +222,7 @@ class Mundo:
                             vecinos = [(0, 1), (0, -1), (1, 0), (-1, 0)]
                             for dx, dy in vecinos:
                                 nx, ny = curr_x + dx, curr_y + dy
-                                if 0 <= nx < COLUMNAS and 0 <= ny < FILAS:
+                                if 0 <= nx < config.COLUMNAS and 0 <= ny < config.FILAS:
                                     ntile = self.mapa_logico[ny][nx]
                                     if (nx, ny) not in visitados and ntile["transitable"] and ntile["tipo"] != "agua":
                                         visitados.add((nx, ny))
@@ -247,8 +247,8 @@ class Mundo:
         
         # Eliminar todo lo que NO sea la mejor isla (limpieza)
         cambios = 0
-        for f in range(FILAS):
-            for c in range(COLUMNAS):
+        for f in range(config.FILAS):
+            for c in range(config.COLUMNAS):
                 if (c, f) not in tiles_validos:
                     self.mapa_logico[f][c]["tipo"] = "agua"
                     self.mapa_logico[f][c]["transitable"] = False
@@ -258,14 +258,8 @@ class Mundo:
         print(f"Mundo limpiado. {cambios} tiles convertidos en agua.")
         
         # RE-ORIENTAR EL CENTRO DEL MUNDO (Para el spawn de habitantes)
-        # Calculamos el centro de masa de la isla
-        sum_x = sum(p[0] for p in tiles_validos)
-        sum_y = sum(p[1] for p in tiles_validos)
-        center_x = int(sum_x / len(tiles_validos))
-        center_y = int(sum_y / len(tiles_validos))
-        
-        # Guardamos este "centro de spawn" en una variable de clase o modificamos el mapa para marcarlo?
-        # Mejor: Colocamos el edificio "centro" ahí.
+        # Usar algoritmo de ubicación estratégica en lugar de centro de masa
+        center_x, center_y = self.encontrar_ubicacion_estrategica(tiles_validos)
         
         # Primero borrar centro anterior si existía
         self.edificios = {} 
@@ -274,25 +268,95 @@ class Mundo:
         self.mapa_logico[center_y][center_x]["transitable"] = True
         self.mapa_logico[center_y][center_x]["tipo"] = "pasto"
         self.mapa_logico[center_y][center_x]["recurso"] = None
+        # Subir un poco el terreno si está muy bajo
+        self.mapa_logico[center_y][center_x]["altura"] = max(2, self.mapa_logico[center_y][center_x]["altura"])
         
+        # Limpiar área inmediata (3x3) para que la casa no esté bloqueada ni rodeada de agua inmediata
+        for dy in range(-1, 2):
+            for dx in range(-1, 2):
+                nx, ny = center_x + dx, center_y + dy
+                if 0 <= nx < config.COLUMNAS and 0 <= ny < config.FILAS:
+                    self.mapa_logico[ny][nx]["transitable"] = True
+                    self.mapa_logico[ny][nx]["recurso"] = None
+                    if self.mapa_logico[ny][nx]["tipo"] == "agua":
+                         self.mapa_logico[ny][nx]["tipo"] = "arena" # Rellenar costa si es necesario
+
         self.colocar_edificio(center_x, center_y, "centro")
-        print(f"Nuevo Centro Urbano establecido en {center_x}, {center_y}")
+        print(f"Nuevo Centro Urbano Estratégico establecido en {center_x}, {center_y}")
+
+    def encontrar_ubicacion_estrategica(self, tiles_isla):
+        print("Buscando ubicación estratégica para la base...")
+        mejor_puntaje = -9999
+        mejor_pos = list(tiles_isla)[0] # Default fallback
+        
+        # Optimización: No chequear cada tile, saltar de a pasos
+        candidatos = list(tiles_isla)[::5] 
+        
+        for cx, cy in candidatos:
+            puntaje = 0
+            
+            # 1. PROXIMIDAD AL AGUA
+            # Buscamos agua en un radio de 15
+            dist_agua_min = 99
+            for dy in range(-15, 16):
+                for dx in range(-15, 16):
+                    nx, ny = cx + dx, cy + dy
+                    if 0 <= nx < config.COLUMNAS and 0 <= ny < config.FILAS:
+                        if self.mapa_logico[ny][nx]["tipo"] == "agua":
+                            d = math.sqrt(dx*dx + dy*dy)
+                            if d < dist_agua_min: dist_agua_min = d
+            
+            # Puntuación Agua
+            if dist_agua_min < 2:
+                puntaje -= 100 # Muy cerca (riesgo inundación/bloqueo)
+            elif 3 <= dist_agua_min <= 8:
+                puntaje += 50 # Rango ideal
+            elif dist_agua_min > 15:
+                puntaje -= 20 # Muy lejos del agua
+            else:
+                puntaje += 10 # Aceptable
+                
+            # 2. RECURSOS CERCANOS (Radio 10)
+            recursos_cerca = 0
+            for dy in range(-10, 11):
+                for dx in range(-10, 11):
+                    nx, ny = cx + dx, cy + dy
+                    if 0 <= nx < config.COLUMNAS and 0 <= ny < config.FILAS:
+                        tile = self.mapa_logico[ny][nx]
+                        if tile["recurso"] in ["fruta", "vegetal", "animal"]:
+                            recursos_cerca += 1
+                        elif tile["recurso"] == "arbol":
+                            recursos_cerca += 0.5
+            
+            puntaje += (recursos_cerca * 2)
+            
+            # 3. SEGURIDAD / TERRENO
+            # Evitar estar pegado a la nada (bordes del mapa)
+            if cx < 5 or cx > config.COLUMNAS-5 or cy < 5 or cy > config.FILAS-5:
+                puntaje -= 50
+                
+            if puntaje > mejor_puntaje:
+                mejor_puntaje = puntaje
+                mejor_pos = (cx, cy)
+                
+        print(f"Mejor ubicación encontrada: {mejor_pos} con puntaje {mejor_puntaje}")
+        return mejor_pos
 
     def obtener_recurso(self, col, fila):
-        if 0 <= col < COLUMNAS and 0 <= fila < FILAS: return self.mapa_logico[int(fila)][int(col)]["recurso"]
+        if 0 <= col < config.COLUMNAS and 0 <= fila < config.FILAS: return self.mapa_logico[int(fila)][int(col)]["recurso"]
         return None
     def eliminar_recurso(self, col, fila):
-        if 0 <= col < COLUMNAS and 0 <= fila < FILAS:
+        if 0 <= col < config.COLUMNAS and 0 <= fila < config.FILAS:
             self.mapa_logico[int(fila)][int(col)]["recurso"] = None
             self.mapa_logico[int(fila)][int(col)]["transitable"] = True
     def es_transitable(self, col, fila):
-        if 0 <= col < COLUMNAS and 0 <= fila < FILAS: return self.mapa_logico[int(fila)][int(col)]["transitable"]
+        if 0 <= col < config.COLUMNAS and 0 <= fila < config.FILAS: return self.mapa_logico[int(fila)][int(col)]["transitable"]
         return False
     def obtener_tipo(self, col, fila):
-        if 0 <= col < COLUMNAS and 0 <= fila < FILAS: return self.mapa_logico[int(fila)][int(col)]["tipo"]
+        if 0 <= col < config.COLUMNAS and 0 <= fila < config.FILAS: return self.mapa_logico[int(fila)][int(col)]["tipo"]
         return None
     def colocar_edificio(self, col, fila, tipo):
-        if 0 <= col < COLUMNAS and 0 <= fila < FILAS:
+        if 0 <= col < config.COLUMNAS and 0 <= fila < config.FILAS:
             self.edificios[(col, fila)] = tipo
             self.mapa_logico[fila][col]["recurso"] = None
 
@@ -305,7 +369,7 @@ class Mundo:
         return {"madera": 0, "piedra": 0, "comida": 0, "animal":0, "vegetal":0, "fruta":0}
 
     def obtener_altura(self, col, fila):
-        if 0 <= col < COLUMNAS and 0 <= fila < FILAS:
+        if 0 <= col < config.COLUMNAS and 0 <= fila < config.FILAS:
              return self.mapa_logico[int(fila)][int(col)]["altura"]
         return 0
 
@@ -345,7 +409,7 @@ class Mundo:
             for dx, dy in vecinos:
                 next_node = (current[0] + dx, current[1] + dy)
                 
-                if 0 <= next_node[0] < COLUMNAS and 0 <= next_node[1] < FILAS:
+                if 0 <= next_node[0] < config.COLUMNAS and 0 <= next_node[1] < config.FILAS:
                     if self.mapa_logico[next_node[1]][next_node[0]]["transitable"]:
                         new_cost = costo_acumulado[current] + 1
                         if next_node not in costo_acumulado or new_cost < costo_acumulado[next_node]:
@@ -374,3 +438,49 @@ class Mundo:
     def eliminar_animal(self, animal):
         if animal in self.animales:
             self.animales.remove(animal)
+
+    def to_dict(self):
+        # Convertir edificios (llaves tuplas a strings para JSON)
+        edificios_json = {}
+        for pos, tipo in self.edificios.items():
+            key = f"{pos[0]},{pos[1]}"
+            edificios_json[key] = tipo
+
+        return {
+            "mapa_logico": self.mapa_logico,
+            "edificios": edificios_json,
+            "recursos_totales": self.recursos_totales,
+            "tiempo": self.tiempo,
+            "dia": self.dia,
+            "mes": self.mes,
+            "anio": self.anio,
+            "animales": [a.to_dict() for a in self.animales],
+            "bitacora": self.bitacora
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        # Crear instancia sin generar mundo nuevo (o sobreescribirlo)
+        m = cls.__new__(cls)
+        m.mapa_logico = data.get("mapa_logico", [])
+        m.recursos_totales = data.get("recursos_totales", {"madera": 0, "piedra": 0, "comida": 0})
+        m.tiempo = data.get("tiempo", 0.3)
+        m.dia = data.get("dia", 1)
+        m.mes = data.get("mes", 1)
+        m.anio = data.get("anio", 1)
+        m.bitacora = data.get("bitacora", [])
+        m.color_ambiente = (0,0,0,0)
+        
+        # Reconstruir edificios
+        edificios_data = data.get("edificios", {})
+        m.edificios = {}
+        for k, v in edificios_data.items():
+            parts = k.split(',')
+            pos = (int(parts[0]), int(parts[1]))
+            m.edificios[pos] = v
+            
+        # Reconstruir animales
+        animales_data = data.get("animales", [])
+        m.animales = [Animal.from_dict(a) for a in animales_data]
+        
+        return m

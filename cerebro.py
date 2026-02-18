@@ -2,15 +2,8 @@ import random
 import math
 
 # --- CONOCIMIENTO UNIVERSAL (FÍSICA DEL MUNDO) ---
-# Los habitantes NO nacen sabiendo esto. Deben descubrirlo.
-RECETAS_UNIVERSALES = {
-    # Nombre: {Inputs}, Output (implícito es 1 'Nombre')
-    "Fuego": {"madera": 1, "piedra": 1},
-    "Refugio": {"madera": 2, "piedra": 2},
-    "Casa": {"madera": 5, "piedra": 5},
-    "Herramientas": {"madera": 1},
-    "Rueda": {"madera": 2, "piedra": 1} # Ejemplo extra
-}
+import config
+from config import RECETAS_UNIVERSALES
 
 class Accion:
     def __init__(self, nombre, costo=1.0):
@@ -45,22 +38,22 @@ class Cerebro:
                 # Solo guardar si hay algo interesante
                 recurso = mundo.obtener_recurso(nx, ny)
                 if recurso:
-                    cuerpo.memoria[(nx, ny)] = recurso
+                    self.actualizar_memoria(cuerpo, (nx, ny), recurso, mundo.tiempo)
                 
-                # Detectar AGUA (No es un recurso per se, es un tipo de tile)
+                # Detectar AGUA
                 tipo_tile = mundo.obtener_tipo(nx, ny)
                 if tipo_tile == "agua":
-                    cuerpo.memoria[(nx, ny)] = "agua"
+                    self.actualizar_memoria(cuerpo, (nx, ny), "agua", mundo.tiempo)
                 
                 if (nx, ny) in mundo.edificios:
-                    cuerpo.memoria[(nx, ny)] = f"edificio_{mundo.edificios[(nx, ny)]}"
+                    self.actualizar_memoria(cuerpo, (nx, ny), f"edificio_{mundo.edificios[(nx, ny)]}", mundo.tiempo)
 
         # Escanear Animales (snapshot)
         for animal in mundo.animales:
             d = math.sqrt((animal.col - cuerpo.col)**2 + (animal.fila - cuerpo.fila)**2)
             if d <= radio_vision:
                 pos_int = (int(animal.col), int(animal.fila))
-                cuerpo.memoria[pos_int] = f"animal_{animal.tipo}"
+                self.actualizar_memoria(cuerpo, pos_int, f"animal_{animal.tipo}", mundo.tiempo)
 
         # Setup centro
         if not self.centro_mapa:
@@ -88,59 +81,75 @@ class Cerebro:
                 else:
                     self.plan_actual = [] # Plan roto, replanificar
 
-        # --- PLANIFICADOR GOAP ---
-        # 1. Definir Objetivos (Prioridad descendente)
+        # --- PLANIFICADOR GOAP (JERARQUÍA DE MASLOW) ---
+        # 1. Definir Objetivos (Prioridad estricta)
         objetivos = []
         razon_decision = "vida_normal"
         
-        # A. Supervivencia Inmediata
+        # NIVEL 1: FISIOLÓGICO (Supervivencia Inmediata)
+        # Hambre
         if cuerpo.necesidades["hambre"] > 30:
-            objetivos.append(("saciado", 10))
-            razon_decision = "hambre"
+            prio = 50 # Alta prioridad base
+            if cuerpo.necesidades["hambre"] > 70: prio = 100 # PÁNICO
             
+            # Si tengo comida en inventario, comer es la prioridad MÁXIMA
+            if cuerpo.inventario.get("comida", 0) > 0:
+                objetivos.append(("comer_inventario", 999))
+                razon_decision = "hambre_inventario"
+            else:
+                objetivos.append(("saciado", prio))
+                razon_decision = "hambre_busqueda"
+
+        # Sed
         if cuerpo.necesidades["sed"] > 30:
-            prio = 10
-            if cuerpo.necesidades["sed"] > 50: prio = 50 # PÁNICO
+            prio = 50
+            if cuerpo.necesidades["sed"] > 70: prio = 100
             objetivos.append(("hidratado", prio))
             razon_decision = "sed"
-            
-        if cuerpo.necesidades["energia"] < 20:
-             objetivos.append(("descansado", 10))
-             razon_decision = "cansancio"
 
-        # DEBUG
-        if random.random() < 0.05: print(f"🧠 {cuerpo.nombre}: {objetivos} -> {self.plan_actual}")
-        
-        # B. PROTECCIÓN FAMILIAR (Prioridad alta si tiene hijos)
-        if len(cuerpo.hijos) > 0:
-            # Enseñar conocimientos a los hijos
-            if len(cuerpo.conocimientos) > 0:
+        # NIVEL 2: SEGURIDAD (Refugio y Energía)
+        if cuerpo.necesidades["energia"] < 30:
+             # Si está muy cansado, dormir es crítico (riesgo de colapso)
+             prio = 80
+             objetivos.append(("descansado", prio))
+             razon_decision = "cansancio_critico"
+             
+        # NIVEL 3: PERTENENCIA (Social)
+        # Solo si las necesidades fisiológicas no son críticas
+        if cuerpo.necesidades["hambre"] < 50 and cuerpo.necesidades["sed"] < 50:
+            if cuerpo.necesidades["social"] < 50:
+                objetivos.append(("socializar", 20))
+                
+            # Protección Familiar (Enseñar hijos)
+            if len(cuerpo.hijos) > 0:
                 for hijo in cuerpo.hijos:
-                    # Solo enseñar si el hijo está cerca y despierto
-                    if hijo in habitantes:  # Verificar que el hijo siga vivo
+                    if hijo in habitantes:
                         dist = math.sqrt((cuerpo.col - hijo.col)**2 + (cuerpo.fila - hijo.fila)**2)
                         if dist < 30 and len(hijo.conocimientos) < len(cuerpo.conocimientos):
-                            objetivos.append(("enseñar_hijo", 12))
-                            razon_decision = "educacion_familiar"
+                            objetivos.append(("enseñar_hijo", 15))
                             break
-             
-        # C. Comodidad / Mantenimiento
-        if cuerpo.necesidades["energia"] < 60:
-             objetivos.append(("descansado", 5))
-             
-        # D. Ambición / Curiosidad (Si estamos bien)
-        if cuerpo.necesidades["hambre"] < 20 and cuerpo.necesidades["energia"] > 60:
-            objetivos.append(("sabio", 2)) # Descubrir cosas
-            objetivos.append(("rico", 1)) # Acumular recursos
-            
-        # E. Reproducción (La necesidad social y energía alta activan esto)
-        if cuerpo.pareja and cuerpo.necesidades["social"] > 80 and cuerpo.necesidades["energia"] > 70:
-            objetivos.append(("reproducirse", 15))
 
-        # E. Crafting (Si tenemos recursos suficientes)
-        if cuerpo.necesidades["hambre"] < 40:
-             # Check recipes
-             for nom, receta in RECETAS_UNIVERSALES.items():
+            # SOCIALIZAR (Nuevo)
+            if cuerpo.necesidades["social"] < 50:
+                # Buscar a alguien para hablar
+                objetivos.append(("socializar", 20))
+
+
+        # NIVEL 4: AUTORREALIZACIÓN & TRABAJO (Idle/Stockpile)
+        # Si todo está "bajo control" (Hambre < 40, Energía > 40)
+        if cuerpo.necesidades["hambre"] < 40 and cuerpo.necesidades["energia"] > 40:
+            
+            # A. ACUMULAR COMIDA (Instinto de Ardilla)
+            current_food = cuerpo.inventario.get("comida", 0)
+            if current_food < cuerpo.max_inventario:
+                objetivos.append(("recolectar_comida", 10)) # Prioridad media
+            
+            # B. CRAFTING (Mejorar vida)
+            # Solo si conozco recetas y tengo materiales
+            for nom, receta in RECETAS_UNIVERSALES.items():
+                 # Verificar si ya conoce la receta (sistema de conocimientos)
+                 if nom not in cuerpo.conocimientos: continue
+                 
                  posible = True
                  for ing, cant in receta.items():
                      if cuerpo.inventario.get(ing, 0) < cant:
@@ -149,28 +158,62 @@ class Cerebro:
                  if posible:
                      objetivos.append(("craft", 8))
                      break
+            
+            # C. RECOLECTAR MATERIALES (Con propósito)
+            # Solo si tengo inventario y sé para qué sirve
+            if sum(cuerpo.inventario.values()) < cuerpo.max_inventario:
+                # Si sé hacer fuego o casas, busco madera/piedra
+                # O si soy MUY CURIOSO (> 1.2), recolecto para experimentar
+                es_curioso = cuerpo.personalidad["curioso"] > 1.2
+                sabe_usar_materiales = False
+                
+                # Check rápido si conoce alguna receta
+                if len(cuerpo.conocimientos) > 0 or es_curioso:
+                    sabe_usar_materiales = True
+                
+                if sabe_usar_materiales:
+                    objetivos.append(("recolectar_materiales", 5))
 
-        # Default
+            # D. Exploración
+            objetivos.append(("explorar", 2))
+
+        # Default fallback
         objetivos.append(("vivo", 1))
 
-        # Ordenar por prioridad
+        # Ordenar por prioridad descendente
         objetivos.sort(key=lambda x: x[1], reverse=True)
 
-        # 2. Buscar plan para el objetivo más importante
+        # 2. Buscar plan
         for objetivo, prioridad in objetivos:
-            plan = self.construir_plan(cuerpo, mundo, objetivo)
+            plan = self.construir_plan(cuerpo, mundo, objetivo, habitantes)
             if plan:
                 self.plan_actual = plan
-                # Ejecutar primer paso de inmediato
+                # Ejecutar primer paso
                 primera = self.plan_actual.pop(0)
-                
-                # LOGGING DATA SCIENCE - Nueva Decisión
-                self.registrar_decision(cuerpo, primera.nombre, f"nueva_{objetivo}", mundo.tiempo)
-                
+                # LOGGING DATA SCIENCE
+                self.registrar_decision(cuerpo, primera.nombre, f"{objetivo}", mundo.tiempo)
                 return primera.nombre, primera.datos
         
-        # LOGGING WAIT
-        self.registrar_decision(cuerpo, "ESPERAR", "sin_objetivos", mundo.tiempo)
+        # SI FALLA TODO (Crisis existencial):
+        # Fallback de emergencia último recurso: DORMIR SUELO
+        if cuerpo.necesidades["energia"] < 50:
+             self.registrar_decision(cuerpo, "DORMIR_SUELO", "fallback_emergencia", mundo.tiempo)
+             return "DORMIR_SUELO", None
+        
+        # O caminar random
+        self.registrar_decision(cuerpo, "EXPLORAR", "aburrimiento_total", mundo.tiempo)
+        
+        # Generar coords validas para explorar
+        acc_fallback = Accion("EXPLORAR")
+        for _ in range(10):
+            dx = random.randint(-5, 5)
+            dy = random.randint(-5, 5)
+            nx, ny = int(cuerpo.col + dx), int(cuerpo.fila + dy)
+            if mundo.es_transitable(nx, ny):
+                # Validar que no caiga fuera del mapa
+                if 0 <= nx < mundo.config.COLUMNAS and 0 <= ny < mundo.config.FILAS:
+                     return "EXPLORAR", (nx, ny)
+
         return "ESPERAR", None
 
     # --- HELPER METHODS (Monkey patch o Mixin idealmente, pero aquí directo) ---
@@ -178,146 +221,113 @@ class Cerebro:
     registrar_decision = registrar_decision
     buscar_agua_instinto = buscar_agua_instinto
 
-    def construir_plan(self, cuerpo, mundo, objetivo):
-        # Un planner muy simple: Hardcoded strategies por ahora, 
-        # para no complicar la búsqueda en grafos en este paso
-        
+    def construir_plan(self, cuerpo, mundo, objetivo, habitantes):
+        # Un planner muy simple: Hardcoded strategies
         plan = []
         
-        if objetivo == "hidratado":
-             # Estrategia: Buscar elemento "agua" -> Ir -> Beber
-             # Buscar en memoria
-             pos_agua = self.buscar_recurso_cercano(cuerpo, ["agua"])
-             
+        # --- 1. SUPERVIVENCIA: COMIDA/AGUA ---
+        if objetivo == "comer_inventario":
+            acc_comer = Accion("COMER")
+            acc_comer.datos = "INVENTARIO"
+            return [acc_comer]
+
+        elif objetivo == "hidratado":
+             pos_agua = self.buscar_recurso_cercano(cuerpo, ["agua"], mundo)
              if pos_agua:
-                 dist = self.distancia(cuerpo, pos_agua)
-                 if dist > 1.5:
+                 if self.distancia(cuerpo, pos_agua) > 1.5:
                      acc_ir = Accion("CAMINAR")
                      acc_ir.datos = pos_agua
                      plan.append(acc_ir)
-                     
                  acc_beber = Accion("BEBER")
                  acc_beber.datos = pos_agua
                  plan.append(acc_beber)
                  return plan
              else:
-                 # Explorar para encontrar agua... 
-                 # INSTINTO DE SUPERVIVENCIA: Si la sed es crítica, OMNISCIENCIA
+                 # Instinto de supervivencia (Omnisciencia si es crítico)
                  if cuerpo.necesidades["sed"] > 30:
-                     # "Olfatear" agua en todo el mapa (cheat/instinto)
-                     pos_agua_instinto = self.buscar_agua_instinto(cuerpo, mundo)
-                     if pos_agua_instinto:
-                         cuerpo.memoria[pos_agua_instinto] = "agua" # Descubrir mágicamente
-                         
+                     pos = self.buscar_agua_instinto(cuerpo, mundo)
+                     if pos:
+                         self.actualizar_memoria(cuerpo, pos, "agua", mundo.tiempo)
                          acc_ir = Accion("CAMINAR")
-                         acc_ir.datos = pos_agua_instinto
+                         acc_ir.datos = pos
                          return [acc_ir]
-                 
-                 acc_explorar = Accion("EXPLORAR")
-                 # Asumir que agua suele estar en bordes o ríos
-                 dx = random.randint(-15, 15)
-                 dy = random.randint(-15, 15)
-                 nx, ny = int(cuerpo.col + dx), int(cuerpo.fila + dy)
-                 acc_explorar.datos = (nx, ny)
-                 return [acc_explorar] 
+                 return self.estrategia_exploracion(cuerpo, mundo)
 
         elif objetivo == "saciado":
-            # Estrategia: Buscar comida -> Ir -> Comer
-            pos_comida = self.buscar_recurso_cercano(cuerpo, ["fruta", "vegetal", "animal_gallina", "animal_cabra"])
+            # Buscar comida en el mundo (no tenemos en inventario)
+            pos_comida = self.buscar_recurso_cercano(cuerpo, ["fruta", "vegetal", "animal_gallina"], mundo)
             if pos_comida:
-                dist = self.distancia(cuerpo, pos_comida)
-                if dist > 1.5:
+                if self.distancia(cuerpo, pos_comida) > 1.5:
                     acc_ir = Accion("CAMINAR")
                     acc_ir.datos = pos_comida
                     plan.append(acc_ir)
-                
                 acc_comer = Accion("COMER")
                 acc_comer.datos = pos_comida
                 plan.append(acc_comer)
                 return plan
             else:
-                # Explorar para encontrar comida
-                acc_explorar = Accion("EXPLORAR")
-                # Generar punto random
-                dx = random.randint(-10, 10)
-                dy = random.randint(-10, 10)
-                nx, ny = int(cuerpo.col + dx), int(cuerpo.fila + dy)
-                if mundo.es_transitable(nx, ny):
-                     acc_explorar.datos = (nx, ny)
-                     return [acc_explorar]
+                return self.estrategia_exploracion(cuerpo, mundo)
 
+        elif objetivo == "recolectar_comida":
+            pos_comida = self.buscar_recurso_cercano(cuerpo, ["fruta", "vegetal"], mundo)
+            if pos_comida:
+                if self.distancia(cuerpo, pos_comida) > 1.5:
+                    acc_ir = Accion("CAMINAR")
+                    acc_ir.datos = pos_comida
+                    plan.append(acc_ir)
+                
+                tipo_comida = cuerpo.memoria.get(pos_comida, "comida")
+                acc_rec = Accion("RECOLECTAR")
+                acc_rec.datos = (pos_comida[0], pos_comida[1], tipo_comida)
+                plan.append(acc_rec)
+                return plan
+            else:
+                return self.estrategia_exploracion(cuerpo, mundo)
+
+        # --- 2. SEGURIDAD: REFUGIO ---
         elif objetivo == "descansado":
-            # Estrategia: Buscar CASA > Construir CASA > Dormir suelo (emergencia)
-            
-            # 1. Buscar casa conocida
+            # Buscar CASA > Construir CASA > Dormir suelo
             pos_casa = self.buscar_estructura_cercana(cuerpo, ["edificio_casa", "edificio_centro"])
-            
             if pos_casa:
-                dist = self.distancia(cuerpo, pos_casa)
-                if dist > 1.5:
+                if self.distancia(cuerpo, pos_casa) > 1.5:
                      acc_ir = Accion("CAMINAR")
                      acc_ir.datos = pos_casa
                      return [acc_ir]
                 else:
-                     # Ya estamos en casa
-                     acc_dormir = Accion("DORMIR")
-                     return [acc_dormir]
+                     return [Accion("DORMIR")]
             else:
-                # 2. No hay casa cerca. ¿Podemos construir una?
-                receta = RECETAS_UNIVERSALES["Casa"]
-                puede_construir = True
-                for ing, cant in receta.items():
-                    if cuerpo.inventario.get(ing, 0) < cant:
-                        puede_construir = False
-                        break
-                
-                if puede_construir:
-                    # Construir aquí mismo (o buscar lugar vacío?)
-                    # Por simplicidad, construimos donde estamos si es transitable
-                    acc_craft = Accion("CRAFT")
-                    acc_craft.datos = "Casa"
-                    
-                    acc_build = Accion("CONSTRUIR") # Asume que el craft habilita construir o consume resources directo
-                    acc_build.datos = "Casa"
-                    
-                    return [acc_craft, acc_build]
-                else:
-                    # 3. Necesitamos recursos para la casa
-                    # Priorizar madera/piedra
-                    return self.plan_recolectar_algo(cuerpo, mundo)
-            return plan
+                # Fallback crítico: Dormir en el suelo
+                return [Accion("DORMIR_SUELO")]
 
+        # --- 3. RECURSOS Y TRABAJO ---
+        elif objetivo == "recolectar_materiales":
+             pos_rec = self.buscar_recurso_cercano(cuerpo, ["madera", "piedra"], mundo)
+             if pos_rec:
+                 if self.distancia(cuerpo, pos_rec) > 1.5:
+                     acc_ir = Accion("CAMINAR")
+                     acc_ir.datos = pos_rec
+                     return [acc_ir]
+                     
+                 tipo_mat = cuerpo.memoria.get(pos_rec, "madera")
+                 acc_rec = Accion("RECOLECTAR")
+                 acc_rec.datos = (pos_rec[0], pos_rec[1], tipo_mat)
+                 return [acc_rec]
+             else:
+                 return self.estrategia_exploracion(cuerpo, mundo)
+        
         elif objetivo == "sabio":
-            # Estrategia: EXPERIMENTAR (Invención)
-            # Requiere tener items para combinar
-            total_items = sum(cuerpo.inventario.values())
-            if total_items >= 2:
-                acc_exp = Accion("EXPERIMENTAR")
-                return [acc_exp]
-            else:
-                # Recolectar algo cualquiera para tener material
-                return self.plan_recolectar_algo(cuerpo, mundo)
+            # Experimentar si tiene items
+            if sum(cuerpo.inventario.values()) >= 2:
+                return [Accion("EXPERIMENTAR")]
+            return self.plan_recolectar_algo(cuerpo, mundo)
 
-        elif objetivo == "rico":
-             # Recolectar lo que sea
-             return self.plan_recolectar_algo(cuerpo, mundo)
-
-        elif objetivo == "vivo":
-            # Si no hay nada urgente, hacemos algo util o paseamos
+        elif objetivo == "rico" or objetivo == "vivo":
             if random.random() < 0.7:
-                return self.plan_recolectar_algo(cuerpo, mundo) # Acumular recursos
+                return self.plan_recolectar_algo(cuerpo, mundo)
             else:
-                acc_explorar = Accion("EXPLORAR")
-                # Generar punto random VÁLIDO
-                for _ in range(10): # Intentos
-                    dx = random.randint(-8, 8)
-                    dy = random.randint(-8, 8)
-                    nx, ny = int(cuerpo.col + dx), int(cuerpo.fila + dy)
-                    if mundo.es_transitable(nx, ny):
-                        acc_explorar.datos = (nx, ny)
-                        return [acc_explorar]
-                return None 
+                return self.estrategia_exploracion(cuerpo, mundo)
 
+        # --- 4. SOCIEDAD Y FAMILIA ---
         elif objetivo == "reproducirse":
             if cuerpo.pareja:
                 dist = self.distancia(cuerpo, (cuerpo.pareja.col, cuerpo.pareja.fila))
@@ -326,11 +336,53 @@ class Cerebro:
                      acc_ir = Accion("CAMINAR")
                      acc_ir.datos = (cuerpo.pareja.col, cuerpo.pareja.fila)
                      plan.append(acc_ir)
-                
-                acc_amor = Accion("REPRODUCIR")
-                plan.append(acc_amor)
+                plan.append(Accion("REPRODUCIR"))
                 return plan
-        
+
+        elif objetivo == "enseñar_hijo":
+            hijo_cercano = None
+            dist_minima = 999
+            for hijo in cuerpo.hijos:
+                if hijo in habitantes:
+                    d = self.distancia(cuerpo, (hijo.col, hijo.fila))
+                    if d < dist_minima and len(hijo.conocimientos) < len(cuerpo.conocimientos):
+                        dist_minima = d
+                        hijo_cercano = hijo
+            if hijo_cercano:
+                plan = []
+                if dist_minima > 3:
+                    acc_ir = Accion("CAMINAR")
+                    acc_ir.datos = (int(hijo_cercano.col), int(hijo_cercano.fila))
+                    plan.append(acc_ir)
+                acc_ensenar = Accion("ENSEÑAR")
+                acc_ensenar.datos = hijo_cercano
+                plan.append(acc_ensenar)
+                return plan
+
+        elif objetivo == "socializar":
+            # Buscar habitante más cercano
+             mejor_dist = 999
+             mejor_target = None
+             for h in habitantes:
+                 if h == cuerpo: continue
+                 d = self.distancia(cuerpo, (h.col, h.fila))
+                 if d < mejor_dist:
+                     mejor_dist = d
+                     mejor_target = h
+             
+             if mejor_target:
+                 plan = []
+                 if mejor_dist > 2.0:
+                     acc_ir = Accion("CAMINAR")
+                     acc_ir.datos = (mejor_target.col, mejor_target.fila) # Ir a su posición actual
+                     plan.append(acc_ir)
+                 
+                 acc_soc = Accion("SOCIALIZAR")
+                 acc_soc.datos = mejor_target
+                 plan.append(acc_soc)
+                 return plan
+
+
         elif objetivo == "craft":
              for nom, receta in RECETAS_UNIVERSALES.items():
                  posible = True
@@ -342,33 +394,28 @@ class Cerebro:
                      acc = Accion("CRAFT")
                      acc.datos = nom
                      return [acc]
-        
-        elif objetivo == "enseñar_hijo":
-            # Encontrar al hijo más cercano y enseñarle conocimientos
-            hijo_cercano = None
-            dist_minima = 999999
-            
-            for hijo in cuerpo.hijos:
-                if hijo in habitantes:  # Verificar que siga vivo
-                    dist = math.sqrt((cuerpo.col - hijo.col)**2 + (cuerpo.fila - hijo.fila)**2)
-                    if dist < dist_minima and len(hijo.conocimientos) < len(cuerpo.conocimientos):
-                        dist_minima = dist
-                        hijo_cercano = hijo
-            
-            if hijo_cercano:
-                plan = []
-                # Si está lejos, acercarse
-                if dist_minima > 3:
-                    acc_ir = Accion("CAMINAR")
-                    acc_ir.datos = (int(hijo_cercano.col), int(hijo_cercano.fila))
-                    plan.append(acc_ir)
-                
-                # Enseñar (acción SOCIALIZAR que transferirá conocimiento)
-                acc_ensenar = Accion("ENSEÑAR")
-                acc_ensenar.datos = hijo_cercano
-                plan.append(acc_ensenar)
-                return plan
 
+        return None
+
+    def estrategia_exploracion(self, cuerpo, mundo):
+        acc = Accion("EXPLORAR")
+        # Estrategia 1: Aleatorio válido
+        for _ in range(20):
+            dx = random.randint(-10, 10)
+            dy = random.randint(-10, 10)
+            nx, ny = int(cuerpo.col + dx), int(cuerpo.fila + dy)
+            if mundo.es_transitable(nx, ny):
+                acc.datos = (nx, ny)
+                return [acc]
+        
+        # Estrategia 2: Pánico (adyacente)
+        for dy in range(-1, 2):
+             for dx in range(-1, 2):
+                 if dx==0 and dy==0: continue
+                 nx, ny = int(cuerpo.col + dx), int(cuerpo.fila + dy)
+                 if mundo.es_transitable(nx, ny):
+                      acc.datos = (nx, ny)
+                      return [acc]
         return None
 
     def plan_recolectar_algo(self, cuerpo, mundo):
@@ -399,26 +446,49 @@ class Cerebro:
              return None 
 
     def buscar_estructura_cercana(self, cuerpo, tipos):
-        mejor_dist = 9999
+        mejor_puntaje = -9999
         mejor_pos = None
-        for pos, tipo_mem in cuerpo.memoria.items():
-            if tipo_mem in tipos:
+        for pos, info in cuerpo.memoria.items():
+            if info["tipo"] in tipos:
                 d = self.distancia(cuerpo, pos)
-                if d < mejor_dist:
-                    mejor_dist = d
+                # Heurística: Preferir cercano y con alta confianza
+                puntaje = info["confianza"] * 10 - d
+                if puntaje > mejor_puntaje:
+                    mejor_puntaje = puntaje
                     mejor_pos = pos
         return mejor_pos
 
-    def buscar_recurso_cercano(self, cuerpo, tipos):
-        mejor_dist = 9999
+    def buscar_recurso_cercano(self, cuerpo, tipos, mundo=None):
+        mejor_puntaje = -9999
         mejor_pos = None
-        for pos, tipo in cuerpo.memoria.items():
-            if tipo in tipos:
+        
+        # Centro del mapa (ficticio o real)
+        cx, cy = config.COLUMNAS // 2, config.FILAS // 2
+        es_tarde = mundo and mundo.tiempo > 0.6
+        
+        for pos, info in cuerpo.memoria.items():
+            if info["tipo"] in tipos:
                 d = self.distancia(cuerpo, pos)
-                if d < mejor_dist:
-                    mejor_dist = d
+                # Heurística base
+                puntaje = info["confianza"] * 5 - d 
+                
+                # Bonus por cercanía al hogar si es tarde (Apego)
+                if es_tarde:
+                    dist_al_hogar = math.sqrt((pos[0] - cx)**2 + (pos[1] - cy)**2)
+                    puntaje -= dist_al_hogar * 0.5 # Penalizar lo que está lejos del centro
+                
+                if puntaje > mejor_puntaje:
+                    mejor_puntaje = puntaje
                     mejor_pos = pos
         return mejor_pos
+
+    def actualizar_memoria(self, cuerpo, pos, tipo, tiempo):
+        # Si ya lo conocía, reforzar confianza
+        if pos in cuerpo.memoria:
+            cuerpo.memoria[pos]["confianza"] = min(2.0, cuerpo.memoria[pos]["confianza"] + 0.1)
+            cuerpo.memoria[pos]["fecha"] = tiempo
+        else:
+            cuerpo.memoria[pos] = {"tipo": tipo, "confianza": 1.0, "fecha": tiempo}
 
     def distancia(self, cuerpo, pos):
         return math.sqrt((cuerpo.col - pos[0])**2 + (cuerpo.fila - pos[1])**2)

@@ -2,7 +2,8 @@ import os
 import math
 import random
 from config import *
-from cerebro import Cerebro, RECETAS_UNIVERSALES 
+import config
+from cerebro import Cerebro 
 
 class Habitante:
     def __init__(self, col, fila, nombre, genero):
@@ -19,7 +20,8 @@ class Habitante:
         self.camino = [] # Lista de puntos (col, fila) a seguir
         
         # --- ESTADO FÍSICO ---
-        self.inventario = {"madera": 0, "piedra": 0}
+        self.inventario = {"madera": 0, "piedra": 0, "comida": 0}
+        self.max_inventario = 5 # Capacidad de carga
         
         # Estados
         self.accion_actual = "ESPERAR" 
@@ -29,15 +31,24 @@ class Habitante:
 
         # --- CEREBRO & MENTE ---
         self.cerebro = Cerebro()
-        self.memoria = {} # Mapa mental: {(col, fila): "tipo_recurso"}
+        # Memoria cualitativa: {(col, fila): {"tipo": "tipo_recurso", "confianza": 1.0, "fecha_descubrimiento": tick}}
+        self.memoria = {} 
         
         # Necesidades (0 a 100)
         self.necesidades = {
-            "hambre": 20,      # 0 = lleno, 100 = muriendo
-            "sed": 10,         # Nueva necesidad: SED
-            "energia": 80,     # No empiezan al 100 para que duerman antes
-            "social": 40,      # Necesitan amigos
+            "hambre": 10,
+            "sed": 5,
+            "energia": 90,
+            "social": 40,
             "diversion": 50
+        }
+        
+        # --- HABILIDADES & EXPERIENCIA (NUEVO) ---
+        self.habilidades = {
+            "recoleccion": 1.0, # Multiplicador de velocidad (1.0 = normal)
+            "caza": 1.0,
+            "social": 1.0,
+            "ingenio": 1.0
         }
         
         # Personalidad (Factores multiplicadores)
@@ -91,11 +102,12 @@ class Habitante:
         # 2. Consultar al CEREBRO
         orden, datos = self.cerebro.pensar(self, mundo, habitantes)
         
-        # Deterioro pasivo de necesidades (MAS RÁPIDO para debug/actividad)
-        self.necesidades["hambre"] += 0.05 * self.personalidad["gloton"]
-        self.necesidades["sed"] += 0.005 # Sed sube más lento para dar tiempo al cerebro
-        self.necesidades["energia"] -= 0.02 * self.personalidad["trabajador"] 
-        self.necesidades["social"] -= 0.02 * self.personalidad["sociable"]
+        # Deterioro pasivo de necesidades (MAS LENTO para permitir vida)
+        # Hambre: 0.012 * 60 ticks = 0.72 por segundo (Antes 1.2).
+        self.necesidades["hambre"] += 0.012 * self.personalidad["gloton"]
+        self.necesidades["sed"] += 0.010 # La sed sube un poco más lento que hambre
+        self.necesidades["energia"] -= 0.01 * self.personalidad["trabajador"] 
+        self.necesidades["social"] -= 0.01 * self.personalidad["sociable"]
         
         # Clamp valores
         for k in self.necesidades:
@@ -132,12 +144,22 @@ class Habitante:
                 self.necesidades["energia"] = 100
                 self.accion_actual = "ESPERAR" 
 
+        elif orden == "DORMIR_SUELO":
+            self.accion_actual = "DORMIR_SUELO"
+            self.necesidades["energia"] += 0.3 # Recupera menos que en cama
+            self.necesidades["social"] -= 0.1 # Es triste dormir en el suelo
+            if self.necesidades["energia"] >= 90: # No descansa al 100%
+                self.accion_actual = "ESPERAR"
+
         elif orden == "RECOLECTAR":
             # datos = (c, f, tipo)
             c, f, tipo = datos
             self.accion_actual = "TRABAJAR" 
             self.objetivo_trabajo = (c, f, tipo)
-            self.tiempo_trabajo = 60 # Iniciar contador
+            
+            # Tiempo base 60, reducido por habilidad recoleccion
+            # Ej: nivel 2.0 -> 30 ticks
+            self.tiempo_trabajo = max(10, int(60 / self.habilidades["recoleccion"])) 
             
             # Ejecutar un frame de trabajo inmediatamente
             self.continuar_trabajo(mundo)
@@ -174,10 +196,10 @@ class Habitante:
             
             # --- NUEVO: COMPORTAMIENTO COMUNITARIO ---
             # Si es de noche ( > 0.8) y no estamos durmiendo, ir al CENTRO
-            # Asumimos que el centro está cerca de COL//2, FIL//2
-            if mundo.tiempo > 0.82 and self.accion_actual != "DORMIR":
+            # Asumimos que el centro está cerca de config.COLUMNAS//2, config.FILAS//2
+            if mundo.tiempo > 0.82 and self.accion_actual != "DORMIR" and self.accion_actual != "DORMIR_SUELO":
                 # Ir al centro urbano
-                cx, cy = COLUMNAS // 2, FILAS // 2
+                cx, cy = config.COLUMNAS // 2, config.FILAS // 2
                 # Offset aleatorio alrededor de la fogata
                 destino_final = (cx + random.randint(-4, 4), cy + random.randint(-4, 4))
                 if not mundo.es_transitable(destino_final[0], destino_final[1]):
@@ -231,7 +253,53 @@ class Habitante:
                     
                     self.mensaje_actual = "❤️"
                     self.tiempo_bocadillo = 120
+                    self.mensaje_actual = "❤️"
+                    self.tiempo_bocadillo = 120
                     # Cooldown for reproduction? High energy cost acts as soft cooldown.
+        
+        elif orden == "SOCIALIZAR" or orden == "INTERACTUAR":
+             target = datos
+             if target and target in habitantes:
+                 self.interactuar(target, mundo)
+                 self.accion_actual = "SOCIALIZAR"
+             else:
+                 self.accion_actual = "ESPERAR"
+
+        elif orden == "EXPLORAR":
+            self.accion_actual = "EXPLORAR"
+            destino_final = datos
+            
+            # Si no hay destino, buscamos uno random
+            if not destino_final:
+                # Intento simple de moverse
+                destino_final = (self.col + random.randint(-5, 5), self.fila + random.randint(-5, 5))
+            
+            # Reutilizar lógica de caminata
+            start = (int(round(self.col)), int(round(self.fila)))
+            # Validar que sea transitable (si es random podria caer en agua)
+            if not mundo.es_transitable(destino_final[0], destino_final[1]):
+                 # Buscar vecino transitable
+                 found = False
+                 for dx in range(-1, 2):
+                     for dy in range(-1, 2):
+                         nx, ny = int(destino_final[0] + dx), int(destino_final[1] + dy)
+                         if mundo.es_transitable(nx, ny):
+                             destino_final = (nx, ny)
+                             found = True
+                             break
+                     if found: break
+            
+            if start != destino_final and mundo.es_transitable(destino_final[0], destino_final[1]):
+                ruta = mundo.obtener_camino(start, destino_final)
+                if ruta:
+                    self.camino = ruta
+                    self.moviendose = True
+                else:
+                    self.accion_actual = "ESPERAR"
+            else:
+                 self.accion_actual = "ESPERAR"
+
+
 
         elif orden == "CRAFT":
             receta_nombre = datos
@@ -265,7 +333,17 @@ class Habitante:
         
         elif orden == "COMER":
             self.accion_actual = "COMER"
-            if datos:
+            if datos == "INVENTARIO":
+                if self.inventario.get("comida", 0) > 0:
+                    self.inventario["comida"] -= 1
+                    self.necesidades["hambre"] = max(0, self.necesidades["hambre"] - 60)
+                    self.necesidades["energia"] += 15
+                    mundo.registrar_evento(f"{self.nombre}: Comió de su inventario.", "info")
+                    self.mensaje_actual = "🍎"
+                    self.tiempo_bocadillo = 60
+                else:
+                    self.accion_actual = "ESPERAR" # Fallo
+            elif datos:
                 c_com, f_com = datos
                 recurso = mundo.obtener_recurso(c_com, f_com)
                 animal = mundo.obtener_animal_en_pos(c_com, f_com, radio=1.5)
@@ -281,7 +359,10 @@ class Habitante:
                     self.necesidades["energia"] += 20
                     mundo.registrar_evento(f"{self.nombre}: Cazó una {animal.tipo}.", "info")
                 else:
-                    pass
+                    # El recurso ya no está, limpiar memoria para no quedar atrapado
+                    if (c_com, f_com) in self.memoria:
+                        del self.memoria[(c_com, f_com)]
+                    self.accion_actual = "ESPERAR"
         
         elif orden == "ENSEÑAR":
             self.accion_actual = "ENSEÑANDO"
@@ -326,6 +407,8 @@ class Habitante:
         
         # Verificar si el recurso sigue ahí
         if mundo.obtener_recurso(c, f) != tipo:
+             if (c, f) in self.memoria:
+                 del self.memoria[(c, f)]
              self.accion_actual = "ESPERAR"
              self.objetivo_trabajo = None
              return
@@ -335,6 +418,17 @@ class Habitante:
         self.tiempo_trabajo -= 1
         
         if self.tiempo_trabajo <= 0:
+            # MEJORAR HABILIDAD
+            self.habilidades["recoleccion"] = min(5.0, self.habilidades["recoleccion"] + 0.05)
+            
+            # CHEQUEAR CAPACIDAD
+            total_items = sum(self.inventario.values())
+            if total_items >= self.max_inventario:
+                mundo.registrar_evento(f"{self.nombre}: Inventario lleno, no pudo recoger.", "warning")
+                self.accion_actual = "ESPERAR"
+                self.objetivo_trabajo = None
+                return
+
             mundo.eliminar_recurso(c, f)
             # Ganar item
             if tipo == "arbol": 
@@ -343,8 +437,14 @@ class Habitante:
             elif tipo == "roca": 
                 self.inventario["piedra"] += 1
                 mundo.recursos_totales["piedra"] += 1
+            elif tipo in ["fruta", "vegetal"]:
+                self.inventario["comida"] += 1
+            
+            # Limpiar memoria al terminar éxito
+            if (c, f) in self.memoria:
+                del self.memoria[(c, f)]
                 
-            mundo.registrar_evento(f"{self.nombre}: Terminó de recolectar {tipo}.", "trabajo")
+            mundo.registrar_evento(f"{self.nombre}: Recolectó {tipo}.", "trabajo")
             
             self.accion_actual = "ESPERAR"
             self.objetivo_trabajo = None
@@ -352,6 +452,18 @@ class Habitante:
     def interactuar(self, otro, mundo):
         # Aumentar necesidad social
         self.necesidades["social"] = min(100, self.necesidades["social"] + 15)
+        
+        # MEJORAR HABILIDAD SOCIAL
+        self.habilidades["social"] = min(5.0, self.habilidades["social"] + 0.02)
+
+        # COMPARTIR MEMORIA (NUEVO)
+        # Compartir el lugar más confiable que conozco
+        if self.memoria:
+            mejor_pos = max(self.memoria.items(), key=lambda x: x[1]["confianza"])
+            pos, info = mejor_pos
+            if info["confianza"] > 1.2:
+                # El otro aprende este lugar
+                otro.cerebro.actualizar_memoria(otro, pos, info["tipo"], mundo.tiempo)
         
         # Calcular compatibilidad si no existe
         if otro.nombre not in self.compatibilidad:
@@ -394,6 +506,72 @@ class Habitante:
              self.tiempo_bocadillo = 30
              self.mensaje_actual = "bla"
 
+    def to_dict(self):
+        # Convertir memoria (llaves tuplas a strings para JSON)
+        memoria_json = {}
+        for pos, info in self.memoria.items():
+            key = f"{pos[0]},{pos[1]}"
+            memoria_json[key] = info
+
+        return {
+            "nombre": self.nombre,
+            "genero": self.genero,
+            "col": self.col,
+            "fila": self.fila,
+            "destino_col": self.destino_col,
+            "destino_fila": self.destino_fila,
+            "inventario": self.inventario,
+            "max_inventario": self.max_inventario,
+            "necesidades": self.necesidades,
+            "habilidades": self.habilidades,
+            "personalidad": self.personalidad,
+            "camino": self.camino,
+            "accion_actual": self.accion_actual,
+            "moviendose": self.moviendose,
+            "tiempo_trabajo": self.tiempo_trabajo,
+            "objetivo_trabajo": self.objetivo_trabajo,
+            "memoria": memoria_json,
+            "pareja_nombre": self.pareja.nombre if self.pareja else None,
+            "hijos_nombres": [h.nombre for h in self.hijos],
+            "padre_nombre": self.padre.nombre if self.padre else None,
+            "madre_nombre": self.madre.nombre if self.madre else None,
+            "edad": self.edad,
+            "conocimientos": self.conocimientos,
+            "es_heroe": self.es_heroe,
+            "historia_decisiones": self.historia_decisiones
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        h = cls(data["col"], data["fila"], data["nombre"], data["genero"])
+        h.destino_col = data.get("destino_col", h.col)
+        h.destino_fila = data.get("destino_fila", h.fila)
+        h.inventario = data.get("inventario", h.inventario)
+        h.max_inventario = data.get("max_inventario", 5)
+        h.necesidades = data.get("necesidades", h.necesidades)
+        h.habilidades = data.get("habilidades", h.habilidades)
+        h.personalidad = data.get("personalidad", h.personalidad)
+        h.camino = data.get("camino", [])
+        h.accion_actual = data.get("accion_actual", "ESPERAR")
+        h.moviendose = data.get("moviendose", False)
+        h.tiempo_trabajo = data.get("tiempo_trabajo", 0)
+        h.objetivo_trabajo = data.get("objetivo_trabajo", None)
+        h.edad = data.get("edad", 0)
+        h.conocimientos = data.get("conocimientos", [])
+        h.es_heroe = data.get("es_heroe", False)
+        h.historia_decisiones = data.get("historia_decisiones", [])
+        
+        # Reconstruir memoria (strings a tuplas)
+        mem_data = data.get("memoria", {})
+        h.memoria = {}
+        for k, v in mem_data.items():
+            pos = tuple(map(int, k.split(',')))
+            h.memoria[pos] = v
+            
+        # Nota: pareja/padres/hijos se vinculan en el nivel superior (Mundo)
+        h._temp_data = data # Guardar para vinculación posterior
+        return h
+
     def continuar_caminata(self):
         if not self.camino:
             self.moviendose = False
@@ -407,13 +585,17 @@ class Habitante:
         dy = target[1] - self.fila
         dist = math.sqrt(dx*dx + dy*dy)
         
-        velocidad = VELOCIDAD_BASE
+        # Velocidad base escalada levemente con "ingenio/experiencia"
+        # Máximo +50% de velocidad
+        bono_velocidad = (self.habilidades["ingenio"] - 1.0) * 0.1 
+        velocidad = VELOCIDAD_BASE * (1.0 + min(0.5, bono_velocidad))
         
         if dist <= velocidad:
             # Llegamos al nodo
             self.col = float(target[0])
             self.fila = float(target[1])
             self.camino.pop(0) # Quitamos el nodo visitado
+            # Moverse cuesta menos si eres hábil? No, consume energía igual.
             self.necesidades["energia"] -= 0.5
         else:
             # Nos movemos hacia el nodo

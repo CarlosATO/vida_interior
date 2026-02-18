@@ -31,3 +31,19 @@ MAX_OSCURIDAD = 180         # 0 = Transparente, 255 = Negro total (180 deja ver 
 COLOR_GALLINA = (255, 255, 200) # Blanco amarillento
 COLOR_CABRA = (200, 180, 160)   # Marrón claro
 COLOR_FRUTA = (255, 50, 50)     # Rojo manzana
+
+# --- CONOCIMIENTO UNIVERSAL (FÍSICA DEL MUNDO) ---
+# Los habitantes NO nacen sabiendo esto. Deben descubrirlo.
+RECETAS_UNIVERSALES = {
+    # Nombre: {Inputs}, Output (implícito es 1 'Nombre')
+    "Fuego": {"madera": 1, "piedra": 1},
+    "Refugio": {"madera": 2, "piedra": 2},
+    "Casa": {"madera": 5, "piedra": 5},
+    "Herramientas": {"madera": 1},
+    "Rueda": {"madera": 2, "piedra": 1}, # Ejemplo extra
+    "Música": {"madera": 1} # Para socializar
+}
+
+# --- VIDA Y MUERTE ---
+ESPERANZA_VIDA_ANIOS = 70 # Años promedio de vida
+TICKS_POR_ANIO = 360 * DURACION_DIA_SEGUNDOS * FPS # 360 días * segundos_dia * fps
