@@ -214,6 +214,15 @@
             </div>
         </div>
         <div class="card">
+            <!-- Cultura y Mitos -->
+            <div class="card">
+                <h3>Identidad y Cultura</h3>
+                <div id="mitos-container">
+                    <p>Cargando mitos...</p>
+                </div>
+            </div>
+
+            <!-- Causas de Muerte -->
             <h2>Cause of Death</h2>
             <div style="position: relative; height: 250px;">
                 <canvas id="deathsChart"></canvas>
@@ -293,9 +302,29 @@
                         </div>
                         <div class="stat-label">Social Harmony</div>
                     </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${stats.mitos_supraindividuales || 0}</div>
+                        <div class="stat-label">Supra-individual Myths</div>
+                    </div>
                 `;
 
-                // 3. Groups & Delitos
+                // 3. Groups & Delitos & Mitos
+                const mythCounts = {};
+                stats.habitantes_raw?.forEach(h => {
+                    h.mitos.forEach(m => {
+                        mythCounts[m] = (mythCounts[m] || 0) + 1;
+                    });
+                });
+
+                document.getElementById('mitos-container').innerHTML = Object.entries(mythCounts).length > 0
+                    ? Object.entries(mythCounts).map(([name, count]) => `
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                            <span style="color: #a78bfa; font-weight: bold;">${name}</span>
+                            <span style="color: #6366f1;">${count} miembros</span>
+                        </div>
+                    `).join('')
+                    : '<p style="color: #6b7280; font-style: italic;">Sin mitos activos aún...</p>';
+
                 const groupsDiv = document.getElementById('groups-container');
                 groupsDiv.innerHTML = stats.agrupaciones.length > 0
                     ? stats.agrupaciones.map(g => `<div>👥 ${g.join(', ')}</div>`).join('')

@@ -59,6 +59,10 @@ class Habitante:
             "curioso": random.uniform(0.8, 1.2)
         }
 
+        # --- IMAGINACIÓN (SINGULARIDAD) ---
+        self.imaginacion = random.uniform(0.5, 2.0)
+        self.mitos = set() # Mitos/Identidades supraindividuales compartidas
+
         # Colores Identidad (Procedural temporal - Para frontend)
         self.color_cuerpo = "#6496FF" if genero == "Masculino" else "#FF6496"
         if nombre == "Mateo": self.color_cuerpo = "#5078DC"
@@ -318,6 +322,36 @@ class Habitante:
                 self.mensaje_actual = "🔨"
                 self.tiempo_bocadillo = 60
 
+        elif orden == "CONSTRUIR_TOTEM":
+            # Consumir recursos de la config
+            from config import COSTO_TOTEM
+            for ing, cant in COSTO_TOTEM.items():
+                self.inventario[ing] -= cant
+            
+            # Colocar totem
+            mundo.colocar_edificio(int(self.col), int(self.fila), "totem")
+            self.memoria[(int(self.col), int(self.fila))] = "edificio_totem"
+            
+            # Si no tenía mitos, adopta uno al azar al crear su primer totem
+            if not self.mitos:
+                import config
+                nuevo_mito = random.choice(config.MITOS_DISPONIBLES)
+                self.mitos.add(nuevo_mito)
+                mundo.registrar_evento(f"🗿 {self.nombre} erigió un Tótem y fundó '{nuevo_mito}'", "descubrimiento")
+            else:
+                mundo.registrar_evento(f"🗿 {self.nombre} erigió un Tótem para su fe.", "construccion")
+                
+            self.mensaje_actual = "🗿"
+            self.tiempo_bocadillo = 120
+
+        elif orden == "MEDITAR":
+            self.accion_actual = "MEDITAR"
+            self.necesidades["social"] = min(100, self.necesidades["social"] + 0.5)
+            self.necesidades["energia"] += 0.1
+            self.mensaje_actual = "🧘"
+            self.tiempo_bocadillo = 2 # Bocadillo corto repetitivo
+
+
         elif orden == "CONSTRUIR":
             # datos = "TipoEdificio"
             tipo_edificio = datos if datos else "casa"
@@ -484,6 +518,23 @@ class Habitante:
                      otro.pareja = self
                      mundo.registrar_evento(f"❤️ ¡{self.nombre} y {otro.nombre} son pareja!", "amor")
 
+        # --- TRANSMISIÓN DE MITOS ---
+        # Si compartimos un mito, la compatibilidad aumenta
+        mitos_comunes = self.mitos.intersection(otro.mitos)
+        if mitos_comunes:
+             self.necesidades["social"] = min(100, self.necesidades["social"] + 10)
+             # Bonus de cooperación
+             self.compatibilidad[otro.nombre] = min(100, self.compatibilidad.get(otro.nombre, 50) + 10)
+        
+        # Chance de transmitir mitos (Imaginación)
+        if self.mitos and random.random() < 0.1 * self.imaginacion:
+             mito_a_compartir = random.choice(list(self.mitos))
+             if mito_a_compartir not in otro.mitos:
+                  otro.mitos.add(mito_a_compartir)
+                  mundo.registrar_evento(f"🌟 {self.nombre} convenció a {otro.nombre} de unirse a '{mito_a_compartir}'", "descubrimiento")
+                  self.mensaje_actual = "🌟"
+                  self.tiempo_bocadillo = 60
+
     def hablar(self, receptor, mundo):
         # Elegir qué contar (Prioridad: Tecnologías)
         if not self.conocimientos: return # Nada que decir
@@ -538,6 +589,8 @@ class Habitante:
             "edad": self.edad,
             "conocimientos": self.conocimientos,
             "es_heroe": self.es_heroe,
+            "imaginacion": self.imaginacion,
+            "mitos": list(self.mitos),
             "historia_decisiones": self.historia_decisiones
         }
 
@@ -559,6 +612,8 @@ class Habitante:
         h.edad = data.get("edad", 0)
         h.conocimientos = data.get("conocimientos", [])
         h.es_heroe = data.get("es_heroe", False)
+        h.imaginacion = data.get("imaginacion", 1.0)
+        h.mitos = set(data.get("mitos", []))
         h.historia_decisiones = data.get("historia_decisiones", [])
         
         # Reconstruir memoria (strings a tuplas)

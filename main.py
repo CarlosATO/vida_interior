@@ -225,10 +225,11 @@ def inicializar_mundo(forzar_nuevo=False):
             hab.personalidad["gloton"] = 0.9
         elif nombre == "Sebastian":
             # Solitario eficiente
-            hab.personalidad["trabajador"] = 1.5
-            hab.personalidad["sociable"] = 0.6
-            hab.personalidad["curioso"] = 1.0
             hab.personalidad["gloton"] = 1.1
+        
+        # --- ASIGNACIÓN DE MITOS INICIALES ---
+        if random.random() < 0.4: # 40% chance of being part of a myth at start
+            hab.mitos.add(random.choice(config.MITOS_DISPONIBLES))
         
         habitantes.append(hab)
         nombres_usados.add(nombre)  # Registrar nombre usado
@@ -345,6 +346,21 @@ async def bucle_simulacion():
                                     mutacion = random.uniform(-0.2, 0.2)
                                     bebe.personalidad[trait] = max(0.5, min(2.0, herencia + mutacion))
                             
+                            # Herencia de Imaginación
+                            if h.pareja:
+                                 bebe.imaginacion = (h.imaginacion + h.pareja.imaginacion) / 2 + random.uniform(-0.1, 0.1)
+                            else:
+                                 bebe.imaginacion = h.imaginacion + random.uniform(-0.2, 0.2)
+                            bebe.imaginacion = max(0.2, min(3.0, bebe.imaginacion))
+                            
+                            # Herencia de Mitos (Crianza)
+                            if h.mitos:
+                                 for m in h.mitos:
+                                      if random.random() < 0.7: bebe.mitos.add(m)
+                            if h.pareja and h.pareja.mitos:
+                                 for m in h.pareja.mitos:
+                                      if random.random() < 0.7: bebe.mitos.add(m)
+
                             # Heredar conocimientos de los padres (transferencia cultural)
                             if h.conocimientos:
                                 # Bebé aprende algunos conocimientos de los padres
@@ -526,25 +542,31 @@ async def get_estadisticas():
                     visitados.add(otro.nombre)
         if len(grupo) > 1:
             grupos.append(grupo)
-    
-    # Delitos: Decisiones negativas (ej. esperar por inactividad, o si hambre alta y no come)
-    delitos = []
-    for h in habitantes:
-        for record in h.historia_decisiones[-10:]:  # Últimas 10
-            if record["decision"] == "ESPERAR" and record["hambre"] > 80:
-                delitos.append({"habitante": h.nombre, "delito": "Inactividad con hambre alta", "tiempo": record["t"]})
-    
-    return {
-        "habitantes_vivos": habitantes_vivos,
-        "total_decisiones": total_decisiones,
-        "decisiones_por_tipo": decisiones_por_tipo,
-        "muertes_por_causa": muertes_por_causa,
-        "necesidades_promedio": necesidades_promedio,
-        "evolucion_poblacion": evolucion_poblacion,
-        "agrupaciones": grupos,
-        "delitos": delitos,
-        "tiempo_actual": el_mundo.tiempo
-    }
+        # Delitos: Decisiones negativas (ej. esperar por inactividad, o si hambre alta y no come)
+        delitos = []
+        for h in habitantes:
+            for record in h.historia_decisiones[-10:]:  # Últimas 10
+                if record["decision"] == "ESPERAR" and record["hambre"] > 80:
+                    delitos.append({"habitante": h.nombre, "delito": "Inactividad con hambre alta", "tiempo": record["t"]})
+        
+        # Mitos
+        todos_mitos = set()
+        for h in habitantes:
+            todos_mitos.update(h.mitos)
+        
+        return {
+            "habitantes_vivos": habitantes_vivos,
+            "total_decisiones": total_decisiones,
+            "decisiones_por_tipo": decisiones_por_tipo,
+            "muertes_por_causa": muertes_por_causa,
+            "necesidades_promedio": necesidades_promedio,
+            "evolucion_poblacion": evolucion_poblacion,
+            "agrupaciones": grupos,
+            "delitos": delitos,
+            "mitos_supraindividuales": len(todos_mitos),
+            "habitantes_raw": [h.to_dict() for h in habitantes], # Para el detalle de mitos en frontend
+            "tiempo_actual": el_mundo.tiempo
+        }
 
 @app.get("/api/exportar_datos")
 async def exportar_datos():

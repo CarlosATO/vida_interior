@@ -177,6 +177,18 @@ class Cerebro:
             # D. Exploración
             objetivos.append(("explorar", 2))
 
+        # NIVEL 5: TRASCENDENTAL (Imaginación)
+        # Solo para habitantes con alta imaginación o que ya tienen necesidades muy cubiertas
+        if cuerpo.imaginacion > 1.2 and cuerpo.necesidades["hambre"] < 30:
+            # A. Crear Símbolo (Totem)
+            if not self.buscar_estructura_cercana(cuerpo, ["edificio_totem"]):
+                 # Si tiene suficientes recursos o "imagina" buscarlos
+                 objetivos.append(("crear_totem", 15))
+            
+            # B. Peregrinaje (Visitar Totems de otros o propios)
+            else:
+                 objetivos.append(("peregrinaje", 10))
+
         # Default fallback
         objetivos.append(("vivo", 1))
 
@@ -394,6 +406,32 @@ class Cerebro:
                      acc = Accion("CRAFT")
                      acc.datos = nom
                      return [acc]
+
+        # --- 5. TRASCENDENTAL: IMAGINACIÓN ---
+        elif objetivo == "crear_totem":
+             # Verificar si tiene recursos para tótem
+             from config import COSTO_TOTEM
+             tiene_todo = True
+             for ing, cant in COSTO_TOTEM.items():
+                 if cuerpo.inventario.get(ing, 0) < cant:
+                     tiene_todo = False
+                     break
+             
+             if tiene_todo:
+                 return [Accion("CONSTRUIR_TOTEM")]
+             else:
+                 # Planificar recolectar lo que falta
+                 return self.plan_recolectar_algo(cuerpo, mundo)
+
+        elif objetivo == "peregrinaje":
+             pos_totem = self.buscar_estructura_cercana(cuerpo, ["edificio_totem"])
+             if pos_totem:
+                 if self.distancia(cuerpo, pos_totem) > 2.0:
+                     acc_ir = Accion("CAMINAR")
+                     acc_ir.datos = pos_totem
+                     return [acc_ir]
+                 else:
+                     return [Accion("MEDITAR")]
 
         return None
 

@@ -47,3 +47,17 @@ RECETAS_UNIVERSALES = {
 # --- VIDA Y MUERTE ---
 ESPERANZA_VIDA_ANIOS = 70 # Años promedio de vida
 TICKS_POR_ANIO = 360 * DURACION_DIA_SEGUNDOS * FPS # 360 días * segundos_dia * fps
+
+# --- SISTEMA DE IMAGINACIÓN (SINGULARIDAD HUMANA) ---
+MITOS_DISPONIBLES = [
+    "La Hermandad del Árbol",
+    "El Culto al Sol",
+    "La Orden del Centro",
+    "Los Hijos del Fuego",
+    "Constructores de Mundos"
+]
+
+PODER_IMAGINACION_BASE = 1.0
+COSTO_TOTEM = {"madera": 10, "piedra": 10}
+DURACION_TÓTEM = 5000 # Cuánto tiempo dura un tótem antes de degradarse
+RECARGA_SOCIAL_TOTEM = 30 # Cuánto social recuperan al visitar un tótem compartido
