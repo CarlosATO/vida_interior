@@ -184,7 +184,30 @@
         <button onclick="toggleBitacora()">Journal</button>
     </div>
 
-    <script src="game.js"></script>
+    <!-- Three.js Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <!-- 3D Game Engine -->
+    <script src="game3d.js"></script>
+    <!-- Legacy UI logic for Bitacora if needed, or moved to game3d.js -->
+    <script>
+        // Bitacora UI Logic (Keep it simple here or move to game3d)
+        let showingBitacora = false;
+        function toggleBitacora() {
+            showingBitacora = !showingBitacora;
+            document.getElementById("bitacora-panel").style.display = showingBitacora ? "block" : "none";
+            if (showingBitacora) fetchBitacora();
+        }
+        function fetchBitacora() {
+            fetch('/bitacora').then(r => r.json()).then(renderBitacora);
+        }
+        function renderBitacora(logs) {
+            const list = document.getElementById("log-list");
+            list.innerHTML = logs.map(l => `<div class="log-entry type-${l.tipo || 'info'}"><div class="log-fecha">${l.fecha}</div>${l.mensaje}</div>`).join('');
+        }
+        setInterval(() => { if (showingBitacora) fetchBitacora(); }, 2000);
+    </script>
 </body>
 
 </html>

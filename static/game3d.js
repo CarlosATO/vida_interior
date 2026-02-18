@@ -1,0 +1,341 @@
+// --- CONFIGURACIÓN THREE.JS ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB); // Cielo azul por defecto
+scene.fog = new THREE.Fog(0x87CEEB, 10, 50);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// Loader
+const loader = new THREE.GLTFLoader(); // Requires GLTFLoader script in index.html
+
+// Controles de Cámara (Orbit)
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.maxPolarAngle = Math.PI / 2 - 0.1; // No bajar del suelo
+controls.minDistance = 5;
+controls.maxDistance = 50;
+
+// --- ILUMINACIÓN ---
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+scene.add(hemiLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(10, 20, 10);
+dirLight.castShadow = true;
+dirLight.shadow.camera.top = 20;
+dirLight.shadow.camera.bottom = -20;
+dirLight.shadow.camera.left = -20;
+dirLight.shadow.camera.right = 20;
+dirLight.shadow.mapSize.width = 2048;
+dirLight.shadow.mapSize.height = 2048;
+scene.add(dirLight);
+
+// --- ESTADO DEL JUEGO ---
+let mapa = null;
+let estado = null;
+let lastFetch = 0;
+const FETCH_INTERVAL = 100;
+const TILE_SIZE = 1;
+
+// Grupos para objetos
+const terrainGroup = new THREE.Group();
+const entitiesGroup = new THREE.Group();
+const propsGroup = new THREE.Group(); // Arboles, rocas, edificios
+scene.add(terrainGroup);
+scene.add(entitiesGroup);
+scene.add(propsGroup);
+
+// Cache de Modelos 
+const models = {};
+const loadModel = (name, path) => {
+    loader.load(path, (gltf) => {
+        gltf.scene.traverse(c => { if (c.isMesh) c.castShadow = true; });
+        models[name] = gltf.scene;
+        console.log(`Loaded ${name}`);
+    }, undefined, (err) => console.log(`Failed to load ${name}, using fallback.`));
+};
+
+// Intentar cargar modelos (Si existen)
+// loadModel('tree', '/assets/models/tree.glb');
+// loadModel('human', '/assets/models/human.glb');
+
+// Modelos Interp
+const entities = new Map(); // Mapa de instancias de Entidad3D
+
+// --- CLASES ---
+class Entidad3D {
+    constructor(data) {
+        this.mesh = this.createMesh(data);
+        this.mesh.castShadow = true;
+        entitiesGroup.add(this.mesh);
+
+        this.update(data, true);
+    }
+
+    createMesh(data) {
+        // 1. Try GLTF
+        if (models['human']) {
+            const clone = models['human'].clone();
+            // Colorize if possible (mesh name specific) or just scale
+            return clone;
+        }
+
+        // 2. Fallback Procedural
+        const group = new THREE.Group();
+
+        // Cuerpo
+        const geometry = new THREE.CapsuleGeometry(0.25, 0.7, 4, 8);
+        const material = new THREE.MeshStandardMaterial({ color: data.color_cuerpo || 0xffffff });
+        const body = new THREE.Mesh(geometry, material);
+        body.position.y = 0.5;
+        body.castShadow = true;
+        group.add(body);
+
+        // Cabeza
+        const headGeo = new THREE.SphereGeometry(0.2, 8, 8);
+        const headMat = new THREE.MeshStandardMaterial({ color: 0xffccaa });
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.y = 1.0;
+        head.castShadow = true;
+        group.add(head);
+
+        // Brazos (Simples)
+        const armGeo = new THREE.BoxGeometry(0.1, 0.4, 0.1);
+        const armMat = new THREE.MeshStandardMaterial({ color: data.color_cuerpo || 0xffffff });
+        const leftArm = new THREE.Mesh(armGeo, armMat);
+        leftArm.position.set(-0.3, 0.6, 0);
+        group.add(leftArm);
+        const rightArm = new THREE.Mesh(armGeo, armMat);
+        rightArm.position.set(0.3, 0.6, 0);
+        group.add(rightArm);
+
+        return group;
+    }
+
+    update(data, instant = false) {
+        this.data = data;
+        this.targetX = data.x * TILE_SIZE;
+        this.targetZ = data.y * TILE_SIZE; // Y en 2D es Z en 3D
+
+        // Altura del terreno en esa posición
+        this.targetY = getTerrainHeight(data.x, data.y);
+
+        if (instant) {
+            this.mesh.position.set(this.targetX, this.targetY + 0.7, this.targetZ);
+        }
+    }
+
+    lerp() {
+        if (!this.mesh) return;
+        const speed = 0.1;
+        this.mesh.position.x += (this.targetX - this.mesh.position.x) * speed;
+        this.mesh.position.z += (this.targetZ - this.mesh.position.z) * speed;
+        this.mesh.position.y += (this.targetY + 0.7 - this.mesh.position.y) * speed;
+
+        // Rotación hacia el movimiento
+        const dx = this.targetX - this.mesh.position.x;
+        const dz = this.targetZ - this.mesh.position.z;
+        if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
+            this.mesh.rotation.y = Math.atan2(dx, dz);
+        }
+
+        // Acciones visuales (Dormir)
+        if (this.data.accion === "DORMIR") {
+            this.mesh.rotation.x = -Math.PI / 2;
+            this.mesh.position.y = this.targetY + 0.2;
+        } else {
+            this.mesh.rotation.x = 0;
+        }
+    }
+
+    dispose() {
+        entitiesGroup.remove(this.mesh);
+    }
+}
+
+// --- FUNCIONES ---
+function getTerrainHeight(col, fila) {
+    if (!mapa) return 0;
+    // Simple lookup integer, interpolación bilineal idealmente
+    const c = Math.round(col);
+    const f = Math.round(fila);
+    if (mapa.mapa[f] && mapa.mapa[f][c]) {
+        // Altura base del tile logicamente es mapa[f][c].altura
+        // Asumimos altura visual = altura logica * step
+        return mapa.mapa[f][c].altura * 0.5;
+    }
+    return 0;
+}
+
+function generateTerrain(data) {
+    // Limpiar anterior
+    while (terrainGroup.children.length > 0) {
+        terrainGroup.remove(terrainGroup.children[0]);
+    }
+    while (propsGroup.children.length > 0) {
+        propsGroup.remove(propsGroup.children[0]);
+    }
+
+    // Geometría instanciada sería mejor, pero por simplicidad usaremos cubos/planos simples
+    data.mapa.forEach((fila, f) => {
+        fila.forEach((tile, c) => {
+            const h = tile.altura * 0.5;
+            const geometry = new THREE.BoxGeometry(TILE_SIZE, Math.max(0.1, h + 1), TILE_SIZE); // +1 base
+
+            let color = 0x228822; // Pasto
+            if (tile.tipo === 'agua') color = 0x2244aa;
+            else if (tile.tipo === 'arena') color = 0xeedd88;
+            else if (tile.tipo === 'piedra') color = 0x888888;
+
+            const material = new THREE.MeshStandardMaterial({ color: color });
+            const mesh = new THREE.Mesh(geometry, material);
+
+            mesh.position.set(c * TILE_SIZE, h / 2, f * TILE_SIZE); // Centrado
+            mesh.receiveShadow = true;
+
+            terrainGroup.add(mesh);
+
+            // --- PROPS PROCEDURALES ---
+            // Recursos estáticos visuales (Solo visual por ahora, idealmente vendrían del backend)
+            // Usamos ruido determinista
+            const seed = (c * 13 + f * 37) % 100;
+
+            if (tile.tipo === 'pasto' && seed < 15) {
+                // Árbol
+                createTree(c * TILE_SIZE, h + 0.5, f * TILE_SIZE);
+            } else if (tile.tipo === 'piedra' && seed < 20) {
+                // Roca
+                createRock(c * TILE_SIZE, h + 0.5, f * TILE_SIZE);
+            }
+        });
+    });
+
+    // Ajustar cámara
+    camera.position.set(data.columnas / 2, 20, data.filas + 10);
+    controls.target.set(data.columnas / 2, 0, data.filas / 2);
+}
+
+function createTree(x, y, z) {
+    if (models['tree']) {
+        const clone = models['tree'].clone();
+        clone.position.set(x, y, z);
+        propsGroup.add(clone);
+        return;
+    }
+
+    // Procedural Tree
+    const trunkGeo = new THREE.CylinderGeometry(0.1, 0.15, 0.8, 6);
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x553311 });
+    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+    trunk.position.set(x, y, z);
+    trunk.castShadow = true;
+    propsGroup.add(trunk);
+
+    const leavesGeo = new THREE.ConeGeometry(0.6, 1.5, 6);
+    const leavesMat = new THREE.MeshStandardMaterial({ color: 0x228822 });
+    const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+    leaves.position.set(x, y + 0.8, z);
+    leaves.castShadow = true;
+    propsGroup.add(leaves);
+}
+
+function createRock(x, y, z) {
+    const geo = new THREE.DodecahedronGeometry(0.3, 0);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x777777 });
+    const rock = new THREE.Mesh(geo, mat);
+    rock.position.set(x, y - 0.1, z);
+    rock.castShadow = true;
+    propsGroup.add(rock);
+}
+
+// --- LOOP ---
+function update() {
+    requestAnimationFrame(update);
+
+    const now = Date.now();
+    controls.update();
+
+    // Fetch Estado
+    if (now - lastFetch > FETCH_INTERVAL) {
+        fetch('/estado')
+            .then(res => res.json())
+            .then(data => {
+                estado = data;
+                updateUI(data);
+
+                // Sync Habitantes
+                const currentNames = new Set(data.habitantes.map(h => h.nombre));
+
+                // Update or Create
+                data.habitantes.forEach(h => {
+                    if (entities.has(h.nombre)) {
+                        entities.get(h.nombre).update(h);
+                    } else {
+                        entities.set(h.nombre, new Entidad3D(h));
+                    }
+                });
+
+                // Remove dead
+                for (const [name, ent] of entities) {
+                    if (!currentNames.has(name)) {
+                        ent.dispose();
+                        entities.delete(name);
+                    }
+                }
+
+                // Ciclo Día/Noche visual
+                const time = data.tiempo.hora_global; // 0.0 - 1.0
+                // Sol rota alrededor Z
+                const angle = (time - 0.25) * Math.PI * 2; // Amanecer a las 6
+                dirLight.position.set(Math.cos(angle) * 20, Math.sin(angle) * 20, 10);
+
+                // Color cielo
+                if (time < 0.2 || time > 0.8) scene.background.setHex(0x050510);
+                else scene.background.setHex(0x87CEEB);
+                scene.fog.color.copy(scene.background);
+
+            })
+            .catch(err => console.error(err));
+        lastFetch = now;
+    }
+
+    // Interpolate
+    entities.forEach(ent => ent.lerp());
+
+    renderer.render(scene, camera);
+}
+
+function updateUI(data) {
+    if (!data) return;
+    // Calcular hora (0.0 - 1.0 -> 00:00 - 24:00)
+    let hora_dec = data.tiempo.hora_global * 24;
+    let hora = Math.floor(hora_dec);
+    let min = Math.floor((hora_dec - hora) * 60);
+    let hh = hora.toString().padStart(2, '0');
+    let mm = min.toString().padStart(2, '0');
+
+    document.getElementById('fecha').innerText = `Año ${data.tiempo.anio} | Mes ${data.tiempo.mes} | Día ${data.tiempo.dia} | 🕒 ${hh}:${mm}`;
+    document.getElementById('stats').innerText = `Población: ${data.stats.poblacion}`;
+    const r = data.stats.recursos;
+    document.getElementById('recursos').innerText = `🌲 ${r.madera} | 🪨 ${r.piedra} | 🍎 ${r.comida}`;
+}
+
+// Init
+fetch('/mapa')
+    .then(res => res.json())
+    .then(data => {
+        mapa = data;
+        generateTerrain(data);
+        update();
+    });
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
