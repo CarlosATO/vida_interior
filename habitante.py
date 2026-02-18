@@ -346,7 +346,7 @@ class Habitante:
             
             # Si no tenía mitos, adopta uno al azar al crear su primer totem
             if not self.mitos:
-                import config
+
                 nuevo_mito = random.choice(config.MITOS_DISPONIBLES)
                 self.mitos.add(nuevo_mito)
                 mundo.registrar_evento(f"🗿 {self.nombre} erigió un Tótem y fundó '{nuevo_mito}'", "descubrimiento")
