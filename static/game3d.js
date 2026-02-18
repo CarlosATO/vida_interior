@@ -269,6 +269,14 @@ function generateTerrain(data) {
         });
     });
 
+    // Edificios
+    if (data.edificios) {
+        data.edificios.forEach(edificio => {
+            const h = getTerrainHeight(edificio.c, edificio.f); // Altura suelo
+            createBuilding(edificio.c * TILE_SIZE, h + 0.5, edificio.f * TILE_SIZE, edificio.tipo);
+        });
+    }
+
     // Ajustar cámara
     camera.position.set(data.columnas / 2, 20, data.filas + 10);
     controls.target.set(data.columnas / 2, 0, data.filas / 2);
