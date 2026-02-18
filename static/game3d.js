@@ -375,17 +375,49 @@ function updateUI(data) {
     document.getElementById('recursos').innerText = `🌲 ${r.madera} | 🪨 ${r.piedra} | 🍎 ${r.comida}`;
 }
 
-// Init
-fetch('/mapa')
-    .then(res => res.json())
-    .then(data => {
-        mapa = data;
-        generateTerrain(data);
-        update();
-    });
+// --- DEBUG UI ---
+function showError(msg) {
+    console.error(msg);
+    const errDiv = document.createElement('div');
+    errDiv.style.position = 'absolute';
+    errDiv.style.top = '50%';
+    errDiv.style.left = '50%';
+    errDiv.style.transform = 'translate(-50%, -50%)';
+    errDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
+    errDiv.style.color = 'white';
+    errDiv.style.padding = '20px';
+    errDiv.style.borderRadius = '10px';
+    errDiv.style.zIndex = '9999';
+    errDiv.style.maxWidth = '80%';
+    errDiv.innerText = "ERROR: " + msg;
+    document.body.appendChild(errDiv);
+}
 
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
+// Init
+try {
+    fetch('/mapa')
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+            return res.json();
+        })
+        .then(data => {
+            mapa = data;
+            try {
+                generateTerrain(data);
+                update();
+            } catch (e) {
+                showError("Terrain Gen Error: " + e.message);
+            }
+        })
+        .catch(err => {
+            showError("Map Fetch Error: " + err.message);
+        });
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+} catch (e) {
+    showError("Global Init Error: " + e.message);
+}
