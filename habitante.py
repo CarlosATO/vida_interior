@@ -105,9 +105,9 @@ class Habitante:
         # Deterioro pasivo de necesidades (MAS LENTO para permitir vida)
         # Hambre: 0.012 * 60 ticks = 0.72 por segundo (Antes 1.2).
         self.necesidades["hambre"] += 0.012 * self.personalidad["gloton"]
-        self.necesidades["sed"] += 0.010 # La sed sube un poco más lento que hambre
+        self.necesidades["sed"] += 0.010 
         self.necesidades["energia"] -= 0.01 * self.personalidad["trabajador"] 
-        self.necesidades["social"] -= 0.01 * self.personalidad["sociable"]
+        self.necesidades["social"] -= 0.02 * self.personalidad["sociable"] # Aumentado de 0.01 a 0.02
         
         # Clamp valores
         for k in self.necesidades:
@@ -602,3 +602,13 @@ class Habitante:
             self.col += (dx / dist) * velocidad
             self.fila += (dy / dist) * velocidad
             self.necesidades["energia"] -= 0.5
+
+            # --- NUEVO: SALUDO PROACTIVO AL PASAR ---
+            if random.random() < 0.05: # 5% chance per frame of checking surroundings
+                for otro in getattr(self, '_last_habitantes', []):
+                    if otro != self and self.tiempo_bocadillo <= 0:
+                        d = math.sqrt((self.col - otro.col)**2 + (self.fila - otro.fila)**2)
+                        if d < 3.0:
+                            self.mensaje_actual = random.choice(["¡Hola!", "Hej!", "Buenas", "👋", "😊"])
+                            self.tiempo_bocadillo = 40
+                            break

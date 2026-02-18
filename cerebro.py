@@ -116,9 +116,9 @@ class Cerebro:
              
         # NIVEL 3: PERTENENCIA (Social)
         # Solo si las necesidades fisiológicas no son críticas
-        if cuerpo.necesidades["hambre"] < 50 and cuerpo.necesidades["sed"] < 50:
-            if cuerpo.necesidades["social"] < 50:
-                objetivos.append(("socializar", 20))
+        if cuerpo.necesidades["hambre"] < 70 and cuerpo.necesidades["sed"] < 70:
+            if cuerpo.necesidades["social"] < 60:
+                objetivos.append(("socializar", 45))
                 
             # Protección Familiar (Enseñar hijos)
             if len(cuerpo.hijos) > 0:
@@ -130,9 +130,9 @@ class Cerebro:
                             break
 
             # SOCIALIZAR (Nuevo)
-            if cuerpo.necesidades["social"] < 50:
+            if cuerpo.necesidades["social"] < 60:
                 # Buscar a alguien para hablar
-                objetivos.append(("socializar", 20))
+                objetivos.append(("socializar", 45))
 
 
         # NIVEL 4: AUTORREALIZACIÓN & TRABAJO (Idle/Stockpile)

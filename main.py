@@ -266,6 +266,7 @@ async def bucle_simulacion():
                 # 3. HABITANTES
                 nuevos_habitantes = []
                 for h in habitantes[:]: # Iterar sobre copia
+                    h._last_habitantes = habitantes # Guardar para lógica de proximidad
                     h.ejecutar_ordenes(el_mundo, habitantes)
                     
                     # LOG DE MOVIMIENTO (DEBUG)

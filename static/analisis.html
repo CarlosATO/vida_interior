@@ -287,6 +287,12 @@
                         </div>
                         <div class="stat-label">Avg Hunger</div>
                     </div>
+                    <div class="stat-item">
+                        <div class="stat-value" style="color: ${stats.necesidades_promedio.social > 50 ? '#818cf8' : '#34d399'}">
+                            ${(100 - stats.necesidades_promedio.social).toFixed(1)}%
+                        </div>
+                        <div class="stat-label">Social Harmony</div>
+                    </div>
                 `;
 
                 // 3. Groups & Delitos
@@ -335,7 +341,8 @@
                         datasets: [
                             { label: 'Hunger', data: getData('hambre'), borderColor: '#f87171', tension: 0.4 },
                             { label: 'Thirst', data: getData('sed'), borderColor: '#38bdf8', tension: 0.4 },
-                            { label: 'Energy', data: getData('energia'), borderColor: '#fbbf24', tension: 0.4 }
+                            { label: 'Energy', data: getData('energia'), borderColor: '#fbbf24', tension: 0.4 },
+                            { label: 'Social', data: getData('social'), borderColor: '#818cf8', tension: 0.4 }
                         ]
                     },
                     options: {
@@ -350,6 +357,7 @@
                 needsChart.data.datasets[0].data = getData('hambre');
                 needsChart.data.datasets[1].data = getData('sed');
                 needsChart.data.datasets[2].data = getData('energia');
+                needsChart.data.datasets[3].data = getData('social');
                 needsChart.update('none');
             }
 
