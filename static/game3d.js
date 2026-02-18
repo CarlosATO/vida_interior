@@ -10,7 +10,8 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 // Loader
-const loader = new THREE.GLTFLoader(); // Requires GLTFLoader script in index.html
+const gltfLoader = new THREE.GLTFLoader();
+const fbxLoader = new THREE.FBXLoader();
 
 // Controles de Cámara (Orbit)
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
