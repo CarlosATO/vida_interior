@@ -126,14 +126,14 @@ const loadModel = (name, path, scale = 1.0) => {
 
 // Intentar cargar modelos
 loadModel('tree', '/assets/models/tree.glb', 1.0);
-loadModel('rock', '/assets/models/rock.glb', 5.0); // Raw height 0.05 -> x5 = 0.25 (still small, maybe 10?) -> let's try 10.0
-loadModel('human', '/assets/models/human.fbx', 0.15); // Raw height 5.65 -> x0.15 = ~0.85 (Good)
+loadModel('rock', '/assets/models/rock.glb', 2.0); // 5.0 was 1.3m high. 2.0 will be ~0.5m.
+loadModel('human', '/assets/models/human.fbx', 0.0022); // 0.15 was 56m high. 0.0022 should be ~0.8m.
 loadModel('house', '/assets/models/house.glb', 1.0);
-// Animales (Raw height ~0.4 -> x1.5 = ~0.6)
-loadModel('cow', '/assets/models/cow.gltf', 1.5);
-loadModel('deer', '/assets/models/deer.gltf', 1.5);
-loadModel('fox', '/assets/models/fox.gltf', 1.5);
-loadModel('wolf', '/assets/models/wolf.gltf', 1.5);
+// Animales (1.5 was ~6m high. 0.15 should be ~0.6m)
+loadModel('cow', '/assets/models/cow.gltf', 0.15);
+loadModel('deer', '/assets/models/deer.gltf', 0.15);
+loadModel('fox', '/assets/models/fox.gltf', 0.15);
+loadModel('wolf', '/assets/models/wolf.gltf', 0.15);
 
 // Modelos Interp
 const entities = new Map(); // Mapa de instancias de Entidad3D
