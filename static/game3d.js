@@ -116,7 +116,11 @@ const loadModel = (name, path, scale = 1.0) => {
 loadModel('tree', '/assets/models/tree.glb');
 loadModel('rock', '/assets/models/rock.glb');
 loadModel('human', '/assets/models/human.fbx', 0.015); // Adjust scale for FBX (Kenney chars roughly ~1-2m but units vary)
-loadModel('house', '/assets/models/house.glb');
+// Animales
+loadModel('cow', '/assets/models/cow.gltf', 0.15);
+loadModel('deer', '/assets/models/deer.gltf', 0.15);
+loadModel('fox', '/assets/models/fox.gltf', 0.1);
+loadModel('wolf', '/assets/models/wolf.gltf', 0.1);
 
 // Modelos Interp
 const entities = new Map(); // Mapa de instancias de Entidad3D
@@ -277,6 +281,15 @@ function generateTerrain(data) {
         });
     }
 
+    // Animales
+    if (data.animales) {
+        data.animales.forEach(a => {
+            if (!a.vivo) return; // Ignore dead
+            const h = getTerrainHeight(a.col, a.fila);
+            createAnimal(a.col * TILE_SIZE, h + 0.5, a.fila * TILE_SIZE, a.tipo, a);
+        });
+    }
+
     // Ajustar cámara
     camera.position.set(data.columnas / 2, 20, data.filas + 10);
     controls.target.set(data.columnas / 2, 0, data.filas / 2);
@@ -356,6 +369,38 @@ function createBuilding(x, y, z, type) {
 
     house.castShadow = true;
     propsGroup.add(house);
+}
+
+function createAnimal(x, y, z, type, data) {
+    // Check if we have model
+    let modelName = type.toLowerCase();
+
+    // Map old types if necessary (though we updated backend)
+    if (modelName === 'gallina') modelName = 'chicken'; // We don't have chicken yet, will fallback
+    if (modelName === 'cabra') modelName = 'deer'; // Use deer for goat
+
+    if (models[modelName]) {
+        const clone = models[modelName].clone();
+        clone.position.set(x, y, z);
+
+        // Random rotation usually
+        clone.rotation.y = Math.random() * Math.PI * 2;
+
+        // Add to entities group to interact? 
+        // Or props? Animals move, so entities group better if we want to update them
+        // But for now sticking to static-ish props regeneration in generateTerrain
+        // TODO: Move animals to Entity3D updates for smooth movement
+
+        propsGroup.add(clone);
+        return;
+    }
+
+    // Fallback Animal (Cube)
+    const geo = new THREE.BoxGeometry(0.4, 0.4, 0.6);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xaa5522 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    propsGroup.add(mesh);
 }
 
 // --- LOOP ---
