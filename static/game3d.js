@@ -116,6 +116,7 @@ const loadModel = (name, path, scale = 1.0) => {
 loadModel('tree', '/assets/models/tree.glb');
 loadModel('rock', '/assets/models/rock.glb');
 loadModel('human', '/assets/models/human.fbx', 0.01); // FBX usually needs scale down
+loadModel('house', '/assets/models/house.glb');
 
 // Modelos Interp
 const entities = new Map(); // Mapa de instancias de Entidad3D
@@ -311,6 +312,31 @@ function createRock(x, y, z) {
     rock.position.set(x, y - 0.1, z);
     rock.castShadow = true;
     propsGroup.add(rock);
+}
+
+function createBuilding(x, y, z, type) {
+    if (models['house']) {
+        const clone = models['house'].clone();
+        clone.position.set(x, y, z);
+        propsGroup.add(clone);
+        return;
+    }
+
+    // Fallback House
+    const geo = new THREE.BoxGeometry(1, 1, 1);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x885522 });
+    const house = new THREE.Mesh(geo, mat);
+    house.position.set(x, y + 0.5, z);
+
+    const roofGeo = new THREE.ConeGeometry(0.8, 0.5, 4);
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0xaa2222 });
+    const roof = new THREE.Mesh(roofGeo, roofMat);
+    roof.position.y = 0.75;
+    roof.rotation.y = Math.PI / 4;
+    house.add(roof);
+
+    house.castShadow = true;
+    propsGroup.add(house);
 }
 
 // --- LOOP ---
