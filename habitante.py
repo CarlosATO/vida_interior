@@ -63,7 +63,8 @@ class Habitante:
         self.imaginacion = random.uniform(0.5, 2.0)
         self.mitos = set() # Mitos/Identidades supraindividuales compartidas
 
-        # Colores Identidad (Procedural temporal - Para frontend)
+        # --- ESTADO VISUAL ---
+        self.accion_actual = "IDLE"
         self.color_cuerpo = "#6496FF" if genero == "Masculino" else "#FF6496"
         if nombre == "Mateo": self.color_cuerpo = "#5078DC"
         elif nombre == "Sofia": self.color_cuerpo = "#DC64B4"
@@ -156,17 +157,26 @@ class Habitante:
                 self.accion_actual = "ESPERAR"
 
         elif orden == "RECOLECTAR":
+            self.accion_actual = "RECOLECTAR"
             # datos = (c, f, tipo)
             c, f, tipo = datos
-            self.accion_actual = "TRABAJAR" 
-            self.objetivo_trabajo = (c, f, tipo)
-            
-            # Tiempo base 60, reducido por habilidad recoleccion
-            # Ej: nivel 2.0 -> 30 ticks
-            self.tiempo_trabajo = max(10, int(60 / self.habilidades["recoleccion"])) 
-            
-            # Ejecutar un frame de trabajo inmediatamente
-            self.continuar_trabajo(mundo)
+            # Verificar si sigue ahí
+            if mundo.obtener_recurso(c, f) == tipo:
+                self.accion_actual = "TRABAJAR" 
+                self.objetivo_trabajo = (c, f, tipo)
+                
+                # Tiempo base 60, reducido por habilidad recoleccion
+                # Ej: nivel 2.0 -> 30 ticks
+                self.tiempo_trabajo = max(10, int(60 / self.habilidades["recoleccion"])) 
+                
+                # Ejecutar un frame de trabajo inmediatamente
+                self.continuar_trabajo(mundo)
+            else:
+                # Recurso no encontrado o ya recolectado
+                if (c, f) in self.memoria:
+                    del self.memoria[(c, f)]
+                self.accion_actual = "ESPERAR"
+
 
         elif orden == "EXPERIMENTAR":
             self.accion_actual = "PENSANDO"
@@ -306,6 +316,7 @@ class Habitante:
 
 
         elif orden == "CRAFT":
+            self.accion_actual = "CRAFTING"
             receta_nombre = datos
             receta = RECETAS_UNIVERSALES.get(receta_nombre)
             if receta:
@@ -323,6 +334,7 @@ class Habitante:
                 self.tiempo_bocadillo = 60
 
         elif orden == "CONSTRUIR_TOTEM":
+            self.accion_actual = "CONSTRUYENDO_TOTEM"
             # Consumir recursos de la config
             from config import COSTO_TOTEM
             for ing, cant in COSTO_TOTEM.items():
@@ -353,6 +365,7 @@ class Habitante:
 
 
         elif orden == "CONSTRUIR":
+            self.accion_actual = "CONSTRUYENDO"
             # datos = "TipoEdificio"
             tipo_edificio = datos if datos else "casa"
             # Colocar en el mundo
@@ -431,6 +444,18 @@ class Habitante:
                         hijo.necesidades["social"] = min(100, hijo.necesidades["social"] + 20)
                         
                     self.accion_actual = "ESPERAR"
+
+        elif orden == "PESCAR":
+            self.accion_actual = "PESCAR"
+            # Similar a recolectar pero en agua
+            # Implementación de pesca (ejemplo simplificado)
+            if random.random() < 0.1: # 10% chance de éxito por frame
+                self.inventario["comida"] += 1
+                mundo.registrar_evento(f"{self.nombre}: Pescó un pez.", "trabajo")
+                self.mensaje_actual = "🎣"
+                self.tiempo_bocadillo = 60
+            self.necesidades["energia"] -= 0.2 # Costo de energía por intentar pescar
+            self.accion_actual = "ESPERAR" # Termina la acción después de un intento
 
     def continuar_trabajo(self, mundo):
         if not self.objetivo_trabajo:
@@ -591,6 +616,7 @@ class Habitante:
             "es_heroe": self.es_heroe,
             "imaginacion": self.imaginacion,
             "mitos": list(self.mitos),
+            "accion": self.accion_actual,
             "historia_decisiones": self.historia_decisiones
         }
 

@@ -170,7 +170,11 @@ def inicializar_mundo(forzar_nuevo=False):
         
         # Personalidades variadas para cada habitante
         if nombre == "Emma":
-            # Muy social y curiosa
+            # 5. REPRODUCCIÓN (Social) y curiosa
+            hab.personalidad["sociable"] = 1.5
+            hab.personalidad["curioso"] = 1.4
+            hab.personalidad["trabajador"] = 0.9
+            hab.personalidad["gloton"] = 0.8
             hab.personalidad["sociable"] = 1.5
             hab.personalidad["curioso"] = 1.4
             hab.personalidad["trabajador"] = 0.9
@@ -268,6 +272,16 @@ async def bucle_simulacion():
                 nuevos_habitantes = []
                 for h in habitantes[:]: # Iterar sobre copia
                     h._last_habitantes = habitantes # Guardar para lógica de proximidad
+                    
+                    # --- GESTIÓN DE ACCIÓN PARA FRONTEND ---
+                    if h.path:
+                        h.accion_actual = "CAMINAR"
+                    elif el_mundo.tiempo > 0.8 and h.necesidades["energia"] < 40:
+                        h.accion_actual = "DORMIR"
+                    else:
+                        # Si no estamos forzando una acción visual, que se mantenga la última de ejecutar_ordenes
+                        pass
+
                     h.ejecutar_ordenes(el_mundo, habitantes)
                     
                     # LOG DE MOVIMIENTO (DEBUG)

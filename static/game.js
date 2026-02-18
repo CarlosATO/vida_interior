@@ -14,6 +14,39 @@ let estado = null; // {habitantes, animales, recursos_mapa, tiempo...}
 let lastFetch = 0;
 const FETCH_INTERVAL = 100; // ms
 
+// --- SISTEMA DE ANIMACIÓN ---
+const entities = new Map(); // Mapa de instancias de Inhabitant interp
+const particles = [];
+class Particle {
+    constructor(x, y, color, type = 'smoke') {
+        this.x = x; this.y = y;
+        this.vx = (Math.random() - 0.5) * 2;
+        this.vy = -(Math.random() * 2);
+        this.life = 1.0;
+        this.color = color;
+        this.type = type;
+    }
+    update() {
+        this.x += this.vx; this.y += this.vy;
+        this.life -= 0.02;
+    }
+    draw(ctx) {
+        ctx.globalAlpha = this.life;
+        ctx.fillStyle = this.color;
+        if (this.type === 'zzz') {
+            ctx.font = "bold 14px Arial";
+            ctx.fillText("Z", this.x, this.y);
+        } else if (this.type === 'heart') {
+            ctx.fillText("❤️", this.x, this.y);
+        } else {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 3 * this.life, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
+    }
+}
+
 // Assets
 const images = {};
 const assetList = [
@@ -104,20 +137,31 @@ canvas.addEventListener('mousemove', e => {
 
 let mouseHover = null;
 let mapDataCache = null;
+let followTarget = null; // habitante.nombre to follow
 
 canvas.addEventListener('wheel', e => {
     e.preventDefault();
+    followTarget = null; // Un-follow on manual pan/zoom
 
     if (e.ctrlKey || e.metaKey) {
-        // ZOOM (Pinch gesture often sends ctrlKey on trackpads)
         const zoomSpeed = 0.001;
         ZOOM_LEVEL -= e.deltaY * zoomSpeed;
         if (ZOOM_LEVEL < 0.2) ZOOM_LEVEL = 0.2;
         if (ZOOM_LEVEL > 3.0) ZOOM_LEVEL = 3.0;
     } else {
-        // PAN (Trackpad scroll or Mouse wheel without Ctrl)
         OFFSET_X -= e.deltaX;
         OFFSET_Y -= e.deltaY;
+    }
+});
+
+canvas.addEventListener('click', e => {
+    // Si cliqueamos a alguien, lo seguimos
+    if (mouseHover && estado) {
+        const clickedHab = estado.habitantes.find(h => Math.round(h.x) === mouseHover.c && Math.round(h.y) === mouseHover.f);
+        if (clickedHab) {
+            followTarget = clickedHab.nombre;
+            console.log("Following:", followTarget);
+        }
     }
 });
 
@@ -236,6 +280,63 @@ function drawAvatar(ctx, x, y, habitante, zoom) {
     ctx.restore();
 }
 
+function spawnParticles(x, y, type) {
+    if (type === 'smoke') {
+        for (let i = 0; i < 2; i++) particles.push(new Particle(x, y - 10, '#888'));
+    } else if (type === 'zzz') {
+        if (Math.random() < 0.05) particles.push(new Particle(x + 5, y - 20, '#fff', 'zzz'));
+    } else if (type === 'heart') {
+        if (Math.random() < 0.1) particles.push(new Particle(x, y - 25, '#f44', 'heart'));
+    } else if (type === 'spark') {
+        for (let i = 0; i < 3; i++) particles.push(new Particle(x, y - 15, '#ff0', 'spark'));
+    }
+}
+
+class InhabitantInterp {
+    constructor(data) {
+        this.update(data);
+        this.renderX = data.x;
+        this.renderY = data.y;
+    }
+    update(data) {
+        this.targetX = data.x;
+        this.targetY = data.y;
+        this.data = data;
+    }
+    lerp() {
+        const speed = 0.15; // Velocidad de interpolación
+        this.renderX += (this.targetX - this.renderX) * speed;
+        this.renderY += (this.targetY - this.renderY) * speed;
+
+        // Efectos por estado
+        if (this.data.accion === "DORMIR") spawnParticles(...this.getScreenCoords(), 'zzz');
+        if (this.data.accion === "CONSTRUIR" || this.data.accion === "COCINAR") spawnParticles(...this.getScreenCoords(), 'smoke');
+        if (this.data.mensaje === "❤️") spawnParticles(...this.getScreenCoords(), 'heart');
+    }
+    getScreenCoords() {
+        const iso = gridToIso(this.renderX, this.renderY);
+        // Ajuste de altura por tile
+        const f = Math.round(this.renderY);
+        const c = Math.round(this.renderX);
+        let y = iso.y;
+        if (mapa && mapa.mapa[f] && mapa.mapa[f][c]) y = mapa.mapa[f][c]._topY || iso.y;
+        return [iso.x, y];
+    }
+    draw(ctx) {
+        const [x, y] = this.getScreenCoords();
+
+        ctx.save();
+        if (this.data.accion === "DORMIR") {
+            ctx.translate(x, y);
+            ctx.rotate(Math.PI / 2); // Tumbado
+            drawAvatar(ctx, 0, 0, this.data, ZOOM_LEVEL);
+        } else {
+            drawAvatar(ctx, x, y, this.data, ZOOM_LEVEL);
+        }
+        ctx.restore();
+    }
+}
+
 // --- GAME LOOP ---
 function loop(timestamp) {
     update(timestamp);
@@ -250,10 +351,43 @@ function update(timestamp) {
             .then(data => {
                 estado = data;
                 updateUI(data);
+
+                // Actualizar entidades interp
+                data.habitantes.forEach(h => {
+                    if (!entities.has(h.nombre)) entities.set(h.nombre, new InhabitantInterp(h));
+                    else entities.get(h.nombre).update(h);
+                });
+                // Limpiar muertos
+                for (let [name, _] of entities) {
+                    if (!data.habitantes.find(h => h.nombre === name)) entities.delete(name);
+                }
+
+                // FOLLOW CAMERA
+                if (followTarget && entities.has(followTarget)) {
+                    const h = entities.get(followTarget);
+                    const iso = gridToIso(h.renderX, h.renderY);
+                    // Queremos que iso.x sea CW/2 y iso.y sea CH/2
+                    // iso.x = valX + OFFSET_X -> OFFSET_X = CW/2 - valX
+                    const zoomTW = TILE_WIDTH * ZOOM_LEVEL;
+                    const zoomTH = TILE_HEIGHT * ZOOM_LEVEL;
+                    const valX = (h.renderX - h.renderY) * (zoomTW / 2);
+                    const valY = (h.renderX + h.renderY) * (zoomTH / 2);
+
+                    OFFSET_X += ((canvas.width / 2 - valX) - OFFSET_X) * 0.1;
+                    OFFSET_Y += ((canvas.height / 2 - valY) - OFFSET_Y) * 0.1;
+                }
             })
             .catch(err => console.error("Error fetching estado:", err));
         lastFetch = timestamp;
     }
+
+    // Update particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].update();
+        if (particles[i].life <= 0) particles.splice(i, 1);
+    }
+    // Update interp
+    for (let h of entities.values()) h.lerp();
 
     // Check bitacora update
     if (typeof checkBitacora === "function") {
@@ -317,6 +451,19 @@ function draw() {
                 for (let i = 0; i < capas; i++) {
                     ctx.drawImage(img, pos.x + offX, pos.y - (i * layerOffset), w, h);
                     drawY = pos.y - (i * layerOffset);
+                }
+
+                // DIBUJAR RUIDO AMBIENTAL (Césped, piedras deterministas)
+                if (tipo === 'pasto' || tipo === 'arena') {
+                    const seed = (c * 7 + f * 13) % 100;
+                    if (seed < 30) {
+                        ctx.fillStyle = tipo === 'pasto' ? "rgba(20,50,20,0.15)" : "rgba(50,50,40,0.1)";
+                        ctx.beginPath();
+                        const noiseX = pos.x + (seed % 10 - 5) * ZOOM_LEVEL;
+                        const noiseY = drawY + zoomTH / 2 + (seed % 5 - 2) * ZOOM_LEVEL;
+                        ctx.arc(noiseX, noiseY, (seed % 3 + 1) * ZOOM_LEVEL, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                 }
 
                 // Guardar la Y superior para dibujar objetos encima
@@ -419,27 +566,23 @@ function draw() {
             drawAvatar(ctx, pos.x, topY, h, ZOOM_LEVEL);
         });
 
-        // 5. Overlay Ambiente (Día/Noche)
-        // Usamos tiempo.hora_global (0.0 a 1.0)
-        const t = estado.tiempo.hora_global;
-        let alpha = 0;
-        let color = "0,0,0"; // rgb
-
-        if (t < 0.2) { // Amanecer
-            alpha = 0.8 * (1 - t / 0.2);
-            color = "20,20,40";
-        } else if (t > 0.7 && t < 0.8) { // Atardecer
-            alpha = 0.3 * ((t - 0.7) / 0.1);
-            color = "255,100,0";
-        } else if (t >= 0.8) { // Noche
-            alpha = 0.85;
-            color = "0,0,10";
-        }
-
         if (alpha > 0) {
             ctx.fillStyle = `rgba(${color}, ${alpha})`;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
+
+        // 6. DIBUJAR ENTIDADES INTERPOLADAS
+        for (let h of entities.values()) h.draw(ctx);
+
+        // 7. DIBUJAR PARTÍCULAS
+        particles.forEach(p => p.draw(ctx));
+
+        // 8. EFECTO VIÑETA & POST (Vibrancia)
+        const grd = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width * 0.8);
+        grd.addColorStop(0, "rgba(0,0,0,0)");
+        grd.addColorStop(1, "rgba(0,0,0,0.4)");
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 }
 
