@@ -1,4 +1,5 @@
 // --- CONFIGURACIÓN THREE.JS ---
+console.log("GAME3D V3.0 - DEBUG SCALES");
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB); // Cielo azul por defecto
 scene.fog = new THREE.Fog(0x87CEEB, 10, 50);
@@ -107,21 +108,32 @@ const loadModel = (name, path, scale = 1.0) => {
         // Fix FBX rotation if needed (often needed)
         // if(ext === 'fbx') model.rotation.y = Math.PI;
 
+        // Compute Box to debug size
+        const box = new THREE.Box3().setFromObject(model);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        console.log(`Loaded ${name} | Size: ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`);
+
+        // Apply scale AFTER computing original size to know what we are dealing with
+        // Actually, let's apply scale first if we want final size, or before if we want raw.
+        // Let's print RAW size first then apply scale.
+
+        model.scale.set(scale, scale, scale);
+
         models[name] = model;
-        console.log(`Loaded ${name}`);
     }, undefined, (err) => console.log(`Failed to load ${name} (${path}):`, err));
 };
 
 // Intentar cargar modelos
-loadModel('tree', '/assets/models/tree.glb');
-loadModel('rock', '/assets/models/rock.glb');
-loadModel('human', '/assets/models/human.fbx', 0.05); // Increased scale from 0.015
-loadModel('house', '/assets/models/house.glb');
+loadModel('tree', '/assets/models/tree.glb', 1.0);
+loadModel('rock', '/assets/models/rock.glb', 0.2);
+loadModel('human', '/assets/models/human.fbx', 0.015); // Reverting to 0.015 pending BBox check
+loadModel('house', '/assets/models/house.glb', 1.0);
 // Animales (Scales adjusted for Ultimate Animated Animals)
-loadModel('cow', '/assets/models/cow.gltf', 0.5);
-loadModel('deer', '/assets/models/deer.gltf', 0.5);
-loadModel('fox', '/assets/models/fox.gltf', 0.5);
-loadModel('wolf', '/assets/models/wolf.gltf', 0.5);
+loadModel('cow', '/assets/models/cow.gltf', 0.1);
+loadModel('deer', '/assets/models/deer.gltf', 0.1);
+loadModel('fox', '/assets/models/fox.gltf', 0.1);
+loadModel('wolf', '/assets/models/wolf.gltf', 0.1);
 
 // Modelos Interp
 const entities = new Map(); // Mapa de instancias de Entidad3D
@@ -129,6 +141,8 @@ const entities = new Map(); // Mapa de instancias de Entidad3D
 // --- CLASES ---
 class Entidad3D {
     constructor(data) {
+        this.data = data;
+        this.isProcedural = false;
         this.mesh = this.createMesh(data);
         this.mesh.castShadow = true;
         entitiesGroup.add(this.mesh);
@@ -140,9 +154,11 @@ class Entidad3D {
         // 1. Try GLTF
         if (models['human']) {
             const clone = models['human'].clone();
-            // Colorize if possible (mesh name specific) or just scale
+            this.isProcedural = false;
             return clone;
         }
+
+        this.isProcedural = true;
 
         // 2. Fallback Procedural
         const group = new THREE.Group();
@@ -177,6 +193,14 @@ class Entidad3D {
     }
 
     update(data, instant = false) {
+        // Hot-swap if model loaded after creation
+        if (this.isProcedural && models['human']) {
+            this.dispose();
+            this.mesh = this.createMesh(data);
+            this.mesh.castShadow = true;
+            entitiesGroup.add(this.mesh);
+        }
+
         this.data = data;
         this.targetX = data.x * TILE_SIZE;
         this.targetZ = data.y * TILE_SIZE; // Y en 2D es Z en 3D
@@ -332,7 +356,7 @@ function createRock(x, y, z) {
     if (models['rock']) {
         const clone = models['rock'].clone();
         // Force scale down significantly (User reported giant ball)
-        clone.scale.set(0.05, 0.05, 0.05);
+        clone.scale.set(0.01, 0.01, 0.01);
         clone.rotation.y = Math.random() * Math.PI;
         clone.position.set(x, y, z);
         propsGroup.add(clone);
