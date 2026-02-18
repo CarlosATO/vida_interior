@@ -116,11 +116,11 @@ const loadModel = (name, path, scale = 1.0) => {
 loadModel('tree', '/assets/models/tree.glb');
 loadModel('rock', '/assets/models/rock.glb');
 loadModel('human', '/assets/models/human.fbx', 0.015); // Adjust scale for FBX (Kenney chars roughly ~1-2m but units vary)
-// Animales
-loadModel('cow', '/assets/models/cow.gltf', 0.15);
-loadModel('deer', '/assets/models/deer.gltf', 0.15);
-loadModel('fox', '/assets/models/fox.gltf', 0.1);
-loadModel('wolf', '/assets/models/wolf.gltf', 0.1);
+// Animales (Scales adjusted for Ultimate Animated Animals)
+loadModel('cow', '/assets/models/cow.gltf', 0.5);
+loadModel('deer', '/assets/models/deer.gltf', 0.5);
+loadModel('fox', '/assets/models/fox.gltf', 0.5);
+loadModel('wolf', '/assets/models/wolf.gltf', 0.5);
 
 // Modelos Interp
 const entities = new Map(); // Mapa de instancias de Entidad3D
@@ -330,8 +330,8 @@ function createTree(x, y, z) {
 function createRock(x, y, z) {
     if (models['rock']) {
         const clone = models['rock'].clone();
-        // Force scale down in case it's huge
-        clone.scale.set(0.3, 0.3, 0.3);
+        // Force scale down significantly (User reported giant ball)
+        clone.scale.set(0.05, 0.05, 0.05);
         clone.rotation.y = Math.random() * Math.PI;
         clone.position.set(x, y, z);
         propsGroup.add(clone);
